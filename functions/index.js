@@ -10,11 +10,13 @@ admin.initializeApp();
 
 // Import auth functions
 const authFunctions = require("./auth");
+const orgFunctions = require("./orgs");
 
 // Export auth functions directly
 exports.registerUser = authFunctions.registerUser;
 exports.signIn = authFunctions.signIn;
-exports.onUserCreated = authFunctions.onUserCreated;
+exports.addOrganizationToUser = authFunctions.addOrganizationToUser;
+exports.createOrg = orgFunctions.createOrg;
 
 // Example HTTP function
 exports.helloWorld = onRequest(

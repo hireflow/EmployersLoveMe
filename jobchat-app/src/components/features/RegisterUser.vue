@@ -13,6 +13,9 @@ const error = ref("");
 const handleRegister = async () => {
   try {
     await authStore.register(email.value, password.value);
+    email.value = "";
+    password.value = "";
+    error.value = "";
     router.push("/dashboard");
   } catch (err) {
     error.value = err.message;

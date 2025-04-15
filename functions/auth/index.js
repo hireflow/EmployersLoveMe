@@ -1,16 +1,13 @@
-const { onCall } = require("firebase-functions/v2/https");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
-
-// Use the authOnUserCreated from v2/identity instead of v2/auth
-const { authOnUserCreated } = require("firebase-functions/v2/identity");
-
-// DO NOT initialize Firebase Admin SDK here
-// It's already initialized in the main index.js file
 
 exports.registerUser = onCall(async (request) => {
   const data = request.data;
   if (!data.email || !data.password) {
-    throw new Error("Email and password are required.");
+    throw new HttpsError(
+      "invalid-argument",
+      "Email and password are required."
+    );
   }
 
   try {
@@ -29,6 +26,7 @@ exports.registerUser = onCall(async (request) => {
         displayName: data.displayName || "",
         createdAt: admin.firestore.FieldValue.serverTimestamp(),
         role: "user",
+        organizations: [], // Initialize with empty array
         ...(data.profile || {}),
       });
 
@@ -41,12 +39,50 @@ exports.registerUser = onCall(async (request) => {
       },
     };
   } catch (error) {
-    throw new Error(error.message);
+    throw new HttpsError("internal", error.message);
+  }
+});
+
+exports.addOrganizationToUser = onCall(async (request) => {
+  const data = request.data;
+  const { userId, orgId } = data;
+
+  if (!userId || !orgId) {
+    throw new HttpsError(
+      "invalid-argument",
+      "User ID and Organization ID are required."
+    );
+  }
+
+  try {
+    const userRef = admin.firestore().collection("users").doc(userId);
+    const userDoc = await userRef.get();
+
+    if (!userDoc.exists) {
+      throw new HttpsError("not-found", "User not found");
+    }
+
+    // Update user with organization info
+    await userRef.update({
+      organizations: admin.firestore.FieldValue.arrayUnion(orgId),
+    });
+
+    return {
+      success: true,
+      message: "Organization added to user successfully",
+      userId,
+    };
+  } catch (error) {
+    throw new HttpsError("internal", error.message);
   }
 });
 
 exports.signIn = onCall(async (request) => {
   const data = request.data;
+  if (!data.email) {
+    throw new HttpsError("invalid-argument", "Email is required.");
+  }
+
   try {
     const userRecord = await admin.auth().getUserByEmail(data.email);
 
@@ -56,6 +92,11 @@ exports.signIn = onCall(async (request) => {
       .collection("users")
       .doc(userRecord.uid)
       .get();
+
+    if (!userDoc.exists) {
+      throw new HttpsError("not-found", "User profile not found");
+    }
+
     const userData = userDoc.data();
 
     return {
@@ -67,68 +108,6 @@ exports.signIn = onCall(async (request) => {
       },
     };
   } catch (error) {
-    throw new Error(error.message);
+    throw new HttpsError("internal", error.message);
   }
 });
-
-// // Using authOnUserCreated from v2/identity instead of v2/auth
-// exports.onUserCreated = authOnUserCreated((event) => {
-//   const user = event.data;
-//   console.log(
-//     "onUserCreated triggered with user:",
-//     JSON.stringify(user, null, 2)
-//   );
-
-//   if (!user) {
-//     console.error("User object is null or undefined");
-//     return null;
-//   }
-
-//   if (!user.uid) {
-//     console.error(
-//       "User object missing uid property:",
-//       JSON.stringify(user, null, 2)
-//     );
-//     return null;
-//   }
-
-//   console.log(`Processing user with uid: ${user.uid}`);
-
-//   try {
-//     return admin
-//       .firestore()
-//       .collection("users")
-//       .doc(user.uid)
-//       .get()
-//       .then((userDoc) => {
-//         console.log(`User document exists: ${userDoc.exists}`);
-
-//         if (!userDoc.exists) {
-//           console.log("Creating new user document in Firestore");
-//           return admin
-//             .firestore()
-//             .collection("users")
-//             .doc(user.uid)
-//             .set({
-//               email: user.email || null,
-//               createdAt: admin.firestore.FieldValue.serverTimestamp(),
-//               role: "user",
-//             })
-//             .then(() => {
-//               console.log("User document created successfully");
-//               return null;
-//             });
-//         } else {
-//           console.log("User document already exists, skipping creation");
-//           return null;
-//         }
-//       })
-//       .catch((error) => {
-//         console.error("Error in onUserCreated function:", error);
-//         throw error;
-//       });
-//   } catch (error) {
-//     console.error("Error in onUserCreated function:", error);
-//     throw error;
-//   }
-// });
