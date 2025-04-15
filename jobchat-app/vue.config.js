@@ -1,4 +1,4 @@
-const { defineConfig } = require('@vue/cli-service')
-module.exports = defineConfig({
-  transpileDependencies: true
-})
+// jobchat-app/vue.config.js
+module.exports = {
+  transpileDependencies: true,
+};

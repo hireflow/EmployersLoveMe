@@ -1,12 +1,16 @@
 <template>
-  <h1>Hello world</h1>
+  <router-view></router-view>
 </template>
 
-<script>
-export default {
-  name: "App",
-  components: {},
-};
+<script setup>
+import { onMounted } from "vue";
+import { useAuthStore } from "@/stores/auth";
+
+const authStore = useAuthStore();
+
+onMounted(() => {
+  authStore.initialize();
+});
 </script>
 
 <style>
