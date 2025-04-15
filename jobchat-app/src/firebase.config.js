@@ -14,16 +14,6 @@ const firebaseConfig = {
   measurementId: process.env.VUE_APP_FIREBASE_MEASUREMENT_ID,
 };
 
-// const firebaseConfig = {
-//   apiKey: "AIzaSyCpThmHIWfb3cD-qxER5PexxUlzfefMXts",
-//   authDomain: "chatapply-e7a35.firebaseapp.com",
-//   projectId: "chatapply-e7a35",
-//   storageBucket: "chatapply-e7a35.firebasestorage.app",
-//   messagingSenderId: "516701783688",
-//   appId: "1:516701783688:web:6f714d1c43e18c9915413d",
-//   measurementId: "G-9ZT7L3LJ89",
-// };
-
 // Initialize Firebase
 export const app = initializeApp(firebaseConfig);
 
