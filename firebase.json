@@ -13,21 +13,19 @@
         "firebase-debug.log",
         "firebase-debug.*.log",
         "*.local"
-      ],
-      "predeploy": [
-        "npm --prefix \"$RESOURCE_DIR\" run lint"
       ]
     }
   ],
   "hosting": {
-    "public": "public",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**"
-    ]
+    "public": "jobchat-app/dist",
+    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+    "site": "hireflow"
   },
   "storage": {
     "rules": "storage.rules"
+  },
+  "rewrites": {
+    "source": "**",
+    "destination": "/index.html"
   }
 }
