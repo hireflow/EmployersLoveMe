@@ -5,11 +5,11 @@
   "targets": {
     "chatapply-e7a35": {
       "hosting": {
-        "app": [
+        "main": [
           "hireflow"
         ],
-        "static": [
-          "hireflow-static"
+        "static-content": [
+          "chatapply-e7a35"
         ]
       }
     }

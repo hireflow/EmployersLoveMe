@@ -18,7 +18,7 @@
   ],
   "hosting": [
     {
-      "target": "app",
+      "target": "main",
       "public": "jobchat-app/dist",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "rewrites": [
@@ -29,7 +29,7 @@
       ]
     },
     {
-      "target": "static",
+      "target": "static-content",
       "public": "public",
       "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
       "rewrites": [
