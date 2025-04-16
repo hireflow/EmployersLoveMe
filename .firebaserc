@@ -1,5 +1,18 @@
 {
   "projects": {
     "default": "chatapply-e7a35"
-  }
+  },
+  "targets": {
+    "chatapply-e7a35": {
+      "hosting": {
+        "app": [
+          "hireflow"
+        ],
+        "static": [
+          "hireflow-static"
+        ]
+      }
+    }
+  },
+  "etags": {}
 }

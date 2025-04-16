@@ -16,16 +16,31 @@
       ]
     }
   ],
-  "hosting": {
-    "public": "jobchat-app/dist",
-    "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
-    "site": "hireflow"
-  },
+  "hosting": [
+    {
+      "target": "app",
+      "public": "jobchat-app/dist",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/index.html"
+        }
+      ]
+    },
+    {
+      "target": "static",
+      "public": "public",
+      "ignore": ["firebase.json", "**/.*", "**/node_modules/**"],
+      "rewrites": [
+        {
+          "source": "**",
+          "destination": "/hireflow-updated-colors.html"
+        }
+      ]
+    }
+  ],
   "storage": {
     "rules": "storage.rules"
-  },
-  "rewrites": {
-    "source": "**",
-    "destination": "/index.html"
   }
 }
