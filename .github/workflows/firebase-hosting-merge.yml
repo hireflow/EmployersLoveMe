@@ -34,3 +34,4 @@ jobs:
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_CHATAPPLY_E7A35 }}
           channelId: live
           projectId: chatapply-e7a35
+          targets: main,static-content # Add this line to specify targets
