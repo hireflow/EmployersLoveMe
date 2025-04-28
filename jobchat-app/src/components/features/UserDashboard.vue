@@ -3,6 +3,8 @@ import { useAuthStore } from "@/stores/auth";
 import { useRouter } from "vue-router";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { ref } from "vue";
+import JobDashboard from "./JobDashboard.vue";
+
 const authStore = useAuthStore();
 const router = useRouter();
 
@@ -178,6 +180,8 @@ const handleLogout = async () => {
         </div>
       </div>
     </div>
+
+    <JobDashboard v-if="authStore.selectedOrg" />
 
     <button @click="handleLogout">Logout</button>
   </div>
