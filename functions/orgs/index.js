@@ -202,6 +202,20 @@ exports.createOrg = onCall(async (request) => {
   } = request.data;
 
   try {
+    // Validate required fields
+    if (
+      !name ||
+      !createdById ||
+      !createdByEmail ||
+      !createdLoginEmail ||
+      !createdLoginPassword
+    ) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Missing required fields for organization creation"
+      );
+    }
+
     // Check if an org with this name already exists
     const existingOrg = await admin
       .firestore()
@@ -216,12 +230,26 @@ exports.createOrg = onCall(async (request) => {
       );
     }
 
-    const orgRef = admin.firestore().collection("orgs").doc();
+    // Create the hiring manager user first
+    let hiringManagerUser;
+    try {
+      hiringManagerUser = await admin.auth().createUser({
+        email: createdLoginEmail,
+        password: createdLoginPassword,
+        displayName: `${name} Manager`,
+      });
+    } catch (error) {
+      console.error("Error creating hiring manager:", error);
+      throw new HttpsError(
+        "internal",
+        error.message || "Error creating hiring manager account"
+      );
+    }
 
-    // 1. Create timestamp for createdAt field
+    // Create the organization document
+    const orgRef = admin.firestore().collection("orgs").doc();
     const createdAt = admin.firestore.Timestamp.now();
 
-    // 2. Create the org document data
     const orgData = {
       id: orgRef.id,
       name,
@@ -236,11 +264,10 @@ exports.createOrg = onCall(async (request) => {
       missionStatement,
       companyValues,
       jobIds: [],
-
-      // Initialize other fields as needed
+      hiringManagerId: hiringManagerUser.uid,
       stripeCustomerId: null,
       stripeSubscriptionId: null,
-      paymentPlanTier: "free", // Default tier
+      paymentPlanTier: "free",
       paymentPlanStatus: "active",
       paymentPlanStartDate: createdAt,
       paymentPlanEndDate: null,
@@ -249,53 +276,96 @@ exports.createOrg = onCall(async (request) => {
       logoUrl: null,
     };
 
-    await orgRef.set(orgData);
+    // Use a batch write to ensure both documents are created atomically
+    const batch = admin.firestore().batch();
 
-    const hiringManagerUserRecord = await admin.auth().createUser({
+    // Add the org document
+    batch.set(orgRef, orgData);
+
+    // Add the hiring manager user document
+    const userRef = admin
+      .firestore()
+      .collection("users")
+      .doc(hiringManagerUser.uid);
+
+    batch.set(userRef, {
+      role: "hiring_manager",
+      orgId: orgRef.id,
+      createdAt,
+      organizations: [orgRef.id],
       email: createdLoginEmail,
-      password: createdLoginPassword,
       displayName: `${name} Manager`,
     });
 
-    await admin
-      .firestore()
-      .collection("users")
-      .doc(hiringManagerUserRecord.uid)
-      .set({
-        role: "hiring_manager",
-        orgId: orgRef.id,
-        createdAt,
-        organizations: [orgRef.id],
-      });
+    // Commit the batch
+    await batch.commit();
 
     return {
       success: true,
       orgId: orgRef.id,
-      hiringManagerId: hiringManagerUserRecord.uid,
+      hiringManagerId: hiringManagerUser.uid,
       message: "Organization created successfully",
     };
   } catch (error) {
     console.error("Error creating organization:", error);
+
+    // If we created a user but failed later, clean up
+    if (error.hiringManagerId) {
+      try {
+        await admin.auth().deleteUser(error.hiringManagerId);
+      } catch (cleanupError) {
+        console.error("Error cleaning up hiring manager:", cleanupError);
+      }
+    }
+
     if (error instanceof HttpsError) {
       throw error;
     }
-    throw new HttpsError("internal", "Error creating organization");
+    throw new HttpsError(
+      "internal",
+      error.message || "Error creating organization"
+    );
   }
 });
 
 exports.fetchUserOrgsByEmail = onCall(async (request) => {
-  const createdByEmail = request.data.createdByEmail;
+  const userEmail = request.data.userEmail;
 
   try {
-    const orgRefs = admin
+    // Query for orgs where user is the creator
+    const creatorOrgsRef = admin
       .firestore()
       .collection("orgs")
-      .where("createdByEmail", "==", createdByEmail);
+      .where("createdByEmail", "==", userEmail);
 
-    const orgDocs = await orgRefs.get();
-    const orgData = orgDocs.docs.map((doc) => doc.data());
+    // Query for orgs where user is the hiring manager
+    const hiringManagerOrgsRef = admin
+      .firestore()
+      .collection("orgs")
+      .where("createdLoginEmail", "==", userEmail);
 
-    if (orgDocs.empty) {
+    // Execute both queries in parallel
+    const [creatorOrgsSnapshot, hiringManagerOrgsSnapshot] = await Promise.all([
+      creatorOrgsRef.get(),
+      hiringManagerOrgsRef.get(),
+    ]);
+
+    // Combine and deduplicate results
+    const allOrgs = new Map();
+
+    // Add creator orgs
+    creatorOrgsSnapshot.docs.forEach((doc) => {
+      allOrgs.set(doc.id, doc.data());
+    });
+
+    // Add hiring manager orgs
+    hiringManagerOrgsSnapshot.docs.forEach((doc) => {
+      allOrgs.set(doc.id, doc.data());
+    });
+
+    const orgData = Array.from(allOrgs.values());
+
+    if (orgData.length === 0) {
       return {
         success: false,
         message: "No organizations found",
