@@ -81,7 +81,7 @@ export const useAuthStore = defineStore("auth", () => {
 
       const fetchUserOrgs = httpsCallable(functions, "fetchUserOrgsByEmail");
       const result = await fetchUserOrgs({
-        createdByEmail: user.value.email,
+        userEmail: user.value.email,
       });
 
       // Ensure orgs is always an array

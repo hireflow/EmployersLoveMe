@@ -287,7 +287,7 @@ exports.createOrg = onCall(async (request) => {
       .firestore()
       .collection("users")
       .doc(hiringManagerUser.uid);
-      
+
     batch.set(userRef, {
       role: "hiring_manager",
       orgId: orgRef.id,
@@ -329,18 +329,43 @@ exports.createOrg = onCall(async (request) => {
 });
 
 exports.fetchUserOrgsByEmail = onCall(async (request) => {
-  const createdByEmail = request.data.createdByEmail;
+  const userEmail = request.data.userEmail;
 
   try {
-    const orgRefs = admin
+    // Query for orgs where user is the creator
+    const creatorOrgsRef = admin
       .firestore()
       .collection("orgs")
-      .where("createdByEmail", "==", createdByEmail);
+      .where("createdByEmail", "==", userEmail);
 
-    const orgDocs = await orgRefs.get();
-    const orgData = orgDocs.docs.map((doc) => doc.data());
+    // Query for orgs where user is the hiring manager
+    const hiringManagerOrgsRef = admin
+      .firestore()
+      .collection("orgs")
+      .where("createdLoginEmail", "==", userEmail);
 
-    if (orgDocs.empty) {
+    // Execute both queries in parallel
+    const [creatorOrgsSnapshot, hiringManagerOrgsSnapshot] = await Promise.all([
+      creatorOrgsRef.get(),
+      hiringManagerOrgsRef.get(),
+    ]);
+
+    // Combine and deduplicate results
+    const allOrgs = new Map();
+
+    // Add creator orgs
+    creatorOrgsSnapshot.docs.forEach((doc) => {
+      allOrgs.set(doc.id, doc.data());
+    });
+
+    // Add hiring manager orgs
+    hiringManagerOrgsSnapshot.docs.forEach((doc) => {
+      allOrgs.set(doc.id, doc.data());
+    });
+
+    const orgData = Array.from(allOrgs.values());
+
+    if (orgData.length === 0) {
       return {
         success: false,
         message: "No organizations found",
