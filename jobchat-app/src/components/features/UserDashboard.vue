@@ -11,6 +11,7 @@ const router = useRouter();
 // Initialize Firebase Functions
 const functions = getFunctions();
 const formActive = ref(false);
+const isSubmitting = ref(false);
 // Create a callable function reference
 const createOrg = httpsCallable(functions, "createOrg");
 const orgName = ref("");
@@ -28,14 +29,31 @@ const companyValues = ref("");
 
 // Computed property to check if user is new (has no orgs)
 const isNewUser = computed(() => {
-  return authStore.orgs.length === 0;
+  return !authStore.loading && authStore.orgs.length === 0;
 });
 
 const handleCreateOrg = async () => {
+  if (isSubmitting.value) return;
+
   try {
+    isSubmitting.value = true;
     errorMessage.value = "";
     successMessage.value = "";
 
+    if (!authStore.user?.uid || !authStore.user?.email) {
+      throw new Error("User not authenticated");
+    }
+
+    // Validate form fields
+    if (
+      !orgName.value ||
+      !createdLoginEmail.value ||
+      !createdLoginPassword.value
+    ) {
+      throw new Error("Please fill in all required fields");
+    }
+
+    // Create organization
     const result = await createOrg({
       name: orgName.value,
       createdById: authStore.user.uid,
@@ -50,7 +68,21 @@ const handleCreateOrg = async () => {
       companyValues: companyValues.value,
     });
 
-    // reset the form fields and then toggle the form
+    // Wait a short moment to ensure Firestore consistency
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+
+    // Force refresh orgs with the new organization
+    await authStore.fetchUserOrgs(true);
+
+    // Set the newly created org as the selected org
+    if (result.data?.orgId) {
+      const newOrg = authStore.orgs.find((org) => org.id === result.data.orgId);
+      if (newOrg) {
+        await authStore.setSelectedOrg(newOrg);
+      }
+    }
+
+    // Reset form
     orgName.value = "";
     createdLoginEmail.value = "";
     createdLoginPassword.value = "";
@@ -62,18 +94,27 @@ const handleCreateOrg = async () => {
     companyValues.value = "";
     formActive.value = false;
 
-    successMessage.value = "Organization created successfully!";
-    console.log("Organization created:", result.data);
-
-    // Refetch orgs after creation
-    await authStore.fetchUserOrgs();
+    successMessage.value =
+      "Organization created successfully! Hiring manager credentials have been created.";
   } catch (error) {
     console.error("Error creating organization:", error);
+
+    // Handle specific error cases
     if (error.code === "already-exists") {
       errorMessage.value = "An organization with this name already exists.";
+    } else if (error.code === "invalid-argument") {
+      errorMessage.value =
+        "Please check all required fields are filled correctly.";
+    } else if (error.code === "permission-denied") {
+      errorMessage.value =
+        "You don't have permission to create an organization.";
+    } else if (error.message) {
+      errorMessage.value = error.message;
     } else {
       errorMessage.value = "Error creating organization. Please try again.";
     }
+  } finally {
+    isSubmitting.value = false;
   }
 };
 
@@ -89,6 +130,7 @@ const handleLogout = async () => {
     router.push("/login");
   } catch (error) {
     console.error("Logout error:", error);
+    errorMessage.value = "Failed to logout. Please try again.";
   }
 };
 </script>
@@ -108,8 +150,13 @@ const handleLogout = async () => {
       {{ successMessage }}
     </div>
 
+    <!-- Loading State -->
+    <div v-if="authStore.loading" class="loading-section">
+      <p>Loading...</p>
+    </div>
+
     <!-- New User Welcome Section -->
-    <div v-if="isNewUser" class="welcome-section">
+    <div v-else-if="isNewUser" class="welcome-section">
       <h2>Welcome to JobChat! 🎉</h2>
       <p>
         Get started by creating your first organization to manage your hiring
@@ -184,6 +231,7 @@ const handleLogout = async () => {
             v-model="orgName"
             placeholder="Enter organization name"
             required
+            :disabled="isSubmitting"
           />
         </div>
 
@@ -195,6 +243,7 @@ const handleLogout = async () => {
             v-model="createdLoginEmail"
             placeholder="Enter login email"
             required
+            :disabled="isSubmitting"
           />
         </div>
 
@@ -206,6 +255,7 @@ const handleLogout = async () => {
             v-model="createdLoginPassword"
             placeholder="Enter login password"
             required
+            :disabled="isSubmitting"
           />
         </div>
 
@@ -217,6 +267,7 @@ const handleLogout = async () => {
             v-model="companySize"
             placeholder="e.g., 1-10, 11-50, 51-200"
             required
+            :disabled="isSubmitting"
           />
         </div>
 
@@ -228,6 +279,7 @@ const handleLogout = async () => {
             v-model="industry"
             placeholder="e.g., Technology, Healthcare"
             required
+            :disabled="isSubmitting"
           />
         </div>
 
@@ -239,6 +291,7 @@ const handleLogout = async () => {
             v-model="location"
             placeholder="e.g., New York, NY"
             required
+            :disabled="isSubmitting"
           />
         </div>
 
@@ -249,6 +302,7 @@ const handleLogout = async () => {
             v-model="companyDescription"
             placeholder="Brief description of your company"
             required
+            :disabled="isSubmitting"
           ></textarea>
         </div>
 
@@ -259,6 +313,7 @@ const handleLogout = async () => {
             v-model="missionStatement"
             placeholder="Your company's mission"
             required
+            :disabled="isSubmitting"
           ></textarea>
         </div>
 
@@ -269,15 +324,21 @@ const handleLogout = async () => {
             v-model="companyValues"
             placeholder="Core values of your company"
             required
+            :disabled="isSubmitting"
           ></textarea>
         </div>
 
         <div class="form-actions">
-          <button type="button" @click="toggleForm" class="secondary-button">
+          <button
+            type="button"
+            @click="toggleForm"
+            class="secondary-button"
+            :disabled="isSubmitting"
+          >
             Cancel
           </button>
-          <button type="submit" class="primary-button">
-            Create Organization
+          <button type="submit" class="primary-button" :disabled="isSubmitting">
+            {{ isSubmitting ? "Creating..." : "Create Organization" }}
           </button>
         </div>
       </form>
@@ -300,6 +361,12 @@ const handleLogout = async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 30px;
+}
+
+.loading-section {
+  text-align: center;
+  padding: 40px;
+  color: #6c757d;
 }
 
 .welcome-section {
@@ -383,6 +450,13 @@ textarea {
   font-size: 16px;
 }
 
+input:disabled,
+select:disabled,
+textarea:disabled {
+  background-color: #e9ecef;
+  cursor: not-allowed;
+}
+
 textarea {
   min-height: 100px;
   resize: vertical;
@@ -406,8 +480,13 @@ textarea {
   font-weight: 500;
 }
 
-.primary-button:hover {
+.primary-button:hover:not(:disabled) {
   background-color: #0056b3;
+}
+
+.primary-button:disabled {
+  background-color: #b3d7ff;
+  cursor: not-allowed;
 }
 
 .secondary-button {
@@ -420,8 +499,13 @@ textarea {
   font-weight: 500;
 }
 
-.secondary-button:hover {
+.secondary-button:hover:not(:disabled) {
   background-color: #5a6268;
+}
+
+.secondary-button:disabled {
+  background-color: #a1a8ae;
+  cursor: not-allowed;
 }
 
 .logout-button {
