@@ -2,7 +2,7 @@
 import { useAuthStore } from "@/stores/auth";
 import { useRouter } from "vue-router";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { ref } from "vue";
+import { ref, computed } from "vue";
 import JobDashboard from "./JobDashboard.vue";
 
 const authStore = useAuthStore();
@@ -25,6 +25,11 @@ const location = ref("");
 const companyDescription = ref("");
 const missionStatement = ref("");
 const companyValues = ref("");
+
+// Computed property to check if user is new (has no orgs)
+const isNewUser = computed(() => {
+  return authStore.orgs.length === 0;
+});
 
 const handleCreateOrg = async () => {
   try {
@@ -53,6 +58,8 @@ const handleCreateOrg = async () => {
     industry.value = "";
     location.value = "";
     companyDescription.value = "";
+    missionStatement.value = "";
+    companyValues.value = "";
     formActive.value = false;
 
     successMessage.value = "Organization created successfully!";
@@ -87,9 +94,11 @@ const handleLogout = async () => {
 </script>
 
 <template>
-  <div>
-    <p>Welcome, {{ authStore.user?.email }}</p>
-    <button @click="toggleForm">Create New</button>
+  <div class="dashboard-container">
+    <header class="dashboard-header">
+      <h1>Welcome, {{ authStore.user?.email }}</h1>
+      <button @click="handleLogout" class="logout-button">Logout</button>
+    </header>
 
     <div v-if="errorMessage" class="error-message">
       {{ errorMessage }}
@@ -99,116 +108,340 @@ const handleLogout = async () => {
       {{ successMessage }}
     </div>
 
-    <div v-if="formActive">
-      <form @submit.prevent="handleCreateOrg">
-        <input
-          type="text"
-          v-model="orgName"
-          placeholder="Organization Name"
-          required
-        />
-        <input
-          type="text"
-          v-model="createdLoginEmail"
-          placeholder="Login Email"
-          required
-        />
-        <input
-          type="password"
-          v-model="createdLoginPassword"
-          placeholder="Login Password"
-          required
-        />
-        <input
-          type="text"
-          v-model="companySize"
-          placeholder="Company Size"
-          required
-        />
-        <input type="text" v-model="industry" placeholder="Industry" required />
-        <input type="text" v-model="location" placeholder="Location" required />
-        <input
-          type="text"
-          v-model="companyDescription"
-          placeholder="Company Description"
-          required
-        />
-        <input
-          type="text"
-          v-model="missionStatement"
-          placeholder="Mission Statement"
-          required
-        />
-        <input
-          type="text"
-          v-model="companyValues"
-          placeholder="Company Values"
-          required
-        />
-
-        <button type="submit">Create</button>
-      </form>
+    <!-- New User Welcome Section -->
+    <div v-if="isNewUser" class="welcome-section">
+      <h2>Welcome to JobChat! 🎉</h2>
+      <p>
+        Get started by creating your first organization to manage your hiring
+        process.
+      </p>
+      <button @click="toggleForm" class="primary-button">
+        Create Your First Organization
+      </button>
     </div>
 
-    <div v-if="authStore.orgs.length > 0" class="org-selector">
-      <h2>Select Organization</h2>
-      <select
-        :value="authStore.selectedOrg?.id"
-        @change="
-          (e) => {
-            const selected = authStore.orgs.find(
-              (org) => org.id === e.target.value
-            );
-            if (selected) authStore.setSelectedOrg(selected);
-          }
-        "
-        class="org-dropdown"
-      >
-        <option value="">Select an organization</option>
-        <option v-for="org in authStore.orgs" :key="org.id" :value="org.id">
-          {{ org.name }}
-        </option>
-      </select>
+    <!-- Existing User Organization Section -->
+    <div v-else class="org-management-section">
+      <div class="section-header">
+        <h2>Your Organizations</h2>
+        <button @click="toggleForm" class="secondary-button">
+          + New Organization
+        </button>
+      </div>
 
-      <div v-if="authStore.selectedOrg" class="selected-org">
-        <h3>Current Organization</h3>
-        <div class="org-details">
-          <p><strong>Name:</strong> {{ authStore.selectedOrg.name }}</p>
-          <p><strong>Industry:</strong> {{ authStore.selectedOrg.industry }}</p>
-          <p><strong>Location:</strong> {{ authStore.selectedOrg.location }}</p>
-          <p><strong>Size:</strong> {{ authStore.selectedOrg.companySize }}</p>
+      <div class="org-selector">
+        <select
+          :value="authStore.selectedOrg?.id"
+          @change="
+            (e) => {
+              const selected = authStore.orgs.find(
+                (org) => org.id === e.target.value
+              );
+              if (selected) authStore.setSelectedOrg(selected);
+            }
+          "
+          class="org-dropdown"
+        >
+          <option value="">Select an organization</option>
+          <option v-for="org in authStore.orgs" :key="org.id" :value="org.id">
+            {{ org.name }}
+          </option>
+        </select>
+
+        <div v-if="authStore.selectedOrg" class="selected-org">
+          <h3>Current Organization</h3>
+          <div class="org-details">
+            <p><strong>Name:</strong> {{ authStore.selectedOrg.name }}</p>
+            <p>
+              <strong>Industry:</strong> {{ authStore.selectedOrg.industry }}
+            </p>
+            <p>
+              <strong>Location:</strong> {{ authStore.selectedOrg.location }}
+            </p>
+            <p>
+              <strong>Size:</strong> {{ authStore.selectedOrg.companySize }}
+            </p>
+          </div>
         </div>
       </div>
     </div>
 
-    <JobDashboard v-if="authStore.selectedOrg" />
+    <!-- Organization Creation Form -->
+    <div v-if="formActive" class="create-org-form">
+      <h2>
+        {{
+          isNewUser
+            ? "Create Your First Organization"
+            : "Create New Organization"
+        }}
+      </h2>
+      <form @submit.prevent="handleCreateOrg" class="form-grid">
+        <div class="form-group">
+          <label for="orgName">Organization Name</label>
+          <input
+            id="orgName"
+            type="text"
+            v-model="orgName"
+            placeholder="Enter organization name"
+            required
+          />
+        </div>
 
-    <button @click="handleLogout">Logout</button>
+        <div class="form-group">
+          <label for="loginEmail">Login Email</label>
+          <input
+            id="loginEmail"
+            type="email"
+            v-model="createdLoginEmail"
+            placeholder="Enter login email"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="loginPassword">Login Password</label>
+          <input
+            id="loginPassword"
+            type="password"
+            v-model="createdLoginPassword"
+            placeholder="Enter login password"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="companySize">Company Size</label>
+          <input
+            id="companySize"
+            type="text"
+            v-model="companySize"
+            placeholder="e.g., 1-10, 11-50, 51-200"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="industry">Industry</label>
+          <input
+            id="industry"
+            type="text"
+            v-model="industry"
+            placeholder="e.g., Technology, Healthcare"
+            required
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="location">Location</label>
+          <input
+            id="location"
+            type="text"
+            v-model="location"
+            placeholder="e.g., New York, NY"
+            required
+          />
+        </div>
+
+        <div class="form-group full-width">
+          <label for="companyDescription">Company Description</label>
+          <textarea
+            id="companyDescription"
+            v-model="companyDescription"
+            placeholder="Brief description of your company"
+            required
+          ></textarea>
+        </div>
+
+        <div class="form-group full-width">
+          <label for="missionStatement">Mission Statement</label>
+          <textarea
+            id="missionStatement"
+            v-model="missionStatement"
+            placeholder="Your company's mission"
+            required
+          ></textarea>
+        </div>
+
+        <div class="form-group full-width">
+          <label for="companyValues">Company Values</label>
+          <textarea
+            id="companyValues"
+            v-model="companyValues"
+            placeholder="Core values of your company"
+            required
+          ></textarea>
+        </div>
+
+        <div class="form-actions">
+          <button type="button" @click="toggleForm" class="secondary-button">
+            Cancel
+          </button>
+          <button type="submit" class="primary-button">
+            Create Organization
+          </button>
+        </div>
+      </form>
+    </div>
+
+    <!-- Job Dashboard -->
+    <JobDashboard v-if="authStore.selectedOrg" />
   </div>
 </template>
 
 <style scoped>
+.dashboard-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 30px;
+}
+
+.welcome-section {
+  text-align: center;
+  padding: 40px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
+  margin: 20px 0;
+}
+
+.welcome-section h2 {
+  color: #2c3e50;
+  margin-bottom: 16px;
+}
+
+.welcome-section p {
+  color: #6c757d;
+  margin-bottom: 24px;
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
 .error-message {
-  color: red;
-  margin: 10px 0;
-  padding: 10px;
-  background-color: #ffebee;
+  color: #dc3545;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+  padding: 12px;
   border-radius: 4px;
+  margin-bottom: 20px;
 }
 
 .success-message {
-  color: green;
-  margin: 10px 0;
-  padding: 10px;
-  background-color: #e8f5e9;
+  color: #28a745;
+  background-color: #d4edda;
+  border: 1px solid #c3e6cb;
+  padding: 12px;
   border-radius: 4px;
+  margin-bottom: 20px;
+}
+
+.create-org-form {
+  background-color: white;
+  padding: 24px;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px;
+}
+
+.form-group {
+  margin-bottom: 16px;
+}
+
+.form-group.full-width {
+  grid-column: span 2;
+}
+
+label {
+  display: block;
+  margin-bottom: 8px;
+  color: #495057;
+  font-weight: 500;
+}
+
+input,
+select,
+textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #ced4da;
+  border-radius: 4px;
+  font-size: 16px;
+}
+
+textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.form-actions {
+  grid-column: span 2;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 20px;
+}
+
+.primary-button {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.primary-button:hover {
+  background-color: #0056b3;
+}
+
+.secondary-button {
+  background-color: #6c757d;
+  color: white;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.secondary-button:hover {
+  background-color: #5a6268;
+}
+
+.logout-button {
+  background-color: #dc3545;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.logout-button:hover {
+  background-color: #c82333;
 }
 
 .org-selector {
   margin: 20px 0;
   padding: 20px;
-  background-color: #f5f5f5;
-  border-radius: 4px;
+  background-color: #f8f9fa;
+  border-radius: 8px;
 }
 
 .org-dropdown {
@@ -216,46 +449,29 @@ const handleLogout = async () => {
   max-width: 300px;
   padding: 8px;
   margin: 10px 0;
-  border: 1px solid #ddd;
+  border: 1px solid #ced4da;
   border-radius: 4px;
   font-size: 16px;
 }
 
 .selected-org {
   margin-top: 20px;
-  padding: 15px;
+  padding: 20px;
   background-color: white;
-  border: 1px solid #ddd;
+  border: 1px solid #dee2e6;
   border-radius: 4px;
 }
 
 .org-details {
-  margin-top: 10px;
+  margin-top: 16px;
 }
 
 .org-details p {
-  margin: 5px 0;
+  margin: 8px 0;
+  color: #495057;
 }
 
-input {
-  display: block;
-  margin: 10px 0;
-  padding: 8px;
-  width: 100%;
-  max-width: 300px;
-}
-
-button {
-  margin: 10px 0;
-  padding: 8px 16px;
-  background-color: #1976d2;
-  color: white;
-  border: none;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-button:hover {
-  background-color: #1565c0;
+.org-details strong {
+  color: #212529;
 }
 </style>

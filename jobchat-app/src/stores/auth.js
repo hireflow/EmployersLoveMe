@@ -25,17 +25,31 @@ export const useAuthStore = defineStore("auth", () => {
 
   const fetchUserOrgs = async () => {
     try {
+      if (!user.value?.email) {
+        orgs.value = [];
+        selectedOrg.value = null;
+        return;
+      }
+
       const fetchUserOrgs = httpsCallable(functions, "fetchUserOrgsByEmail");
       const result = await fetchUserOrgs({
         createdByEmail: user.value.email,
       });
-      orgs.value = result.data.orgs;
-      if (orgs.value.length > 0) {
+
+      // Ensure orgs is always an array
+      orgs.value = result.data.success ? result.data.orgs : [];
+
+      // Only set selected org if we have orgs
+      if (orgs.value && orgs.value.length > 0) {
         selectedOrg.value = orgs.value[0];
+      } else {
+        selectedOrg.value = null;
       }
     } catch (err) {
+      console.error("Error fetching user orgs:", err);
       error.value = err.message;
-      throw err;
+      orgs.value = [];
+      selectedOrg.value = null;
     }
   };
 
@@ -44,12 +58,15 @@ export const useAuthStore = defineStore("auth", () => {
     await setPersistence(auth, browserLocalPersistence);
 
     return new Promise((resolve) => {
-      const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
         user.value = firebaseUser;
-        loading.value = false;
         if (user.value) {
-          fetchUserOrgs();
+          await fetchUserOrgs();
+        } else {
+          orgs.value = [];
+          selectedOrg.value = null;
         }
+        loading.value = false;
         resolve(unsubscribe);
       });
     });
@@ -81,6 +98,8 @@ export const useAuthStore = defineStore("auth", () => {
     try {
       await signOut(auth);
       user.value = null;
+      orgs.value = [];
+      selectedOrg.value = null;
     } catch (err) {
       error.value = err.message;
       throw err;
