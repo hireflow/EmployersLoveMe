@@ -26,6 +26,166 @@ const { HttpsError } = require("firebase-functions/v2/https");
 //   logoUrl: String,
 // };
 
+exports.createJob = onCall(async (request) => {
+  try {
+    const {
+      orgId,
+      hiringManagerId,
+      jobTitle,
+      jobDepartment,
+      jobDescription,
+      jobLocation,
+      jobSalary,
+      employmentType,
+      expectedJobDuration,
+      applicationDeadline,
+      salaryRange,
+      responsibilities,
+      requiredSkills,
+      preferredSkills,
+      minExperience,
+      requiredCertifications,
+      educationRequirements,
+      workEnvironment,
+      teamDynamics,
+      growthOpportunities,
+      interviewStages,
+      diversityInitiatives,
+      benefitsPackage,
+      remoteWorkPolicy,
+      travelRequirements,
+      onboardingProcess,
+      teamSize,
+      techStack,
+      candidateResourceLinks,
+    } = request.data;
+
+    // Validate required fields
+    if (!orgId || !hiringManagerId || !jobTitle || !jobDescription) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Missing required fields: orgId, hiringManagerId, jobTitle, or jobDescription"
+      );
+    }
+
+    // Create a new job document
+    const jobRef = admin.firestore().collection("jobs").doc();
+    const createdAt = admin.firestore.Timestamp.now();
+
+    const jobData = {
+      id: jobRef.id,
+      orgId,
+      hiringManagerId,
+      jobTitle,
+      jobDepartment,
+      jobDescription,
+      jobLocation,
+      jobSalary,
+      employmentType,
+      expectedJobDuration,
+      applicationDeadline,
+      salaryRange,
+      responsibilities,
+      requiredSkills,
+      preferredSkills,
+      minExperience,
+      requiredCertifications,
+      educationRequirements,
+      workEnvironment,
+      teamDynamics,
+      growthOpportunities,
+      interviewStages,
+      diversityInitiatives,
+      benefitsPackage,
+      remoteWorkPolicy,
+      travelRequirements,
+      onboardingProcess,
+      teamSize,
+      techStack,
+      candidateResourceLinks,
+      createdAt,
+      status: "active",
+      applications: [], // we will store user data, resume and CV, our report , and interview prep
+    };
+
+    // Create the job document
+    await jobRef.set(jobData);
+
+    // Add the job to the org's jobs array
+    const orgRef = admin.firestore().collection("orgs").doc(orgId);
+    const orgDoc = await orgRef.get();
+
+    if (!orgDoc.exists) {
+      throw new HttpsError("not-found", "Organization not found");
+    }
+
+    await orgRef.update({
+      jobIds: admin.firestore.FieldValue.arrayUnion(jobRef.id),
+    });
+
+    return {
+      success: true,
+      jobId: jobRef.id,
+      message: "Job created successfully",
+    };
+  } catch (error) {
+    console.error("Error creating job:", error);
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    throw new HttpsError("internal", "Error creating job");
+  }
+});
+
+exports.getJobsByOrgId = onCall(async (request) => {
+  try {
+    const { orgId } = request.data;
+
+    if (!orgId) {
+      throw new HttpsError("invalid-argument", "orgId is required");
+    }
+
+    // Get all jobs for this org
+    const jobsSnapshot = await admin
+      .firestore()
+      .collection("jobs")
+      .where("orgId", "==", orgId)
+      .get();
+
+    const jobs = jobsSnapshot.docs.map((doc) => doc.data());
+    console.log("Fetched jobs:", jobs); // Add logging to help debug
+
+    return {
+      success: true,
+      data: jobs,
+    };
+  } catch (error) {
+    console.error("Error fetching jobs:", error);
+    throw new HttpsError("internal", "Error fetching jobs");
+  }
+});
+
+exports.addNewJobIdToOrg = onCall(async (request) => {
+  const { newJobId, orgId } = request.data;
+  const orgRef = admin.firestore().collection("orgs").doc(orgId);
+
+  const orgData = await orgRef.get();
+  const jobIds = orgData.data().jobs;
+
+  if (!jobIds.includes(newJobId)) {
+    await orgRef.update({
+      jobs: [...jobIds, newJobId],
+    });
+  } else {
+    throw new HttpsError("already-exists", "Job already exists in org");
+  }
+
+  return {
+    success: true,
+    message: "Jobs updated successfully",
+  };
+});
+
 exports.createOrg = onCall(async (request) => {
   const {
     name,
@@ -37,8 +197,25 @@ exports.createOrg = onCall(async (request) => {
     industry,
     location,
     companyDescription,
+    missionStatement,
+    companyValues,
   } = request.data;
+
   try {
+    // Check if an org with this name already exists
+    const existingOrg = await admin
+      .firestore()
+      .collection("orgs")
+      .where("name", "==", name)
+      .get();
+
+    if (!existingOrg.empty) {
+      throw new HttpsError(
+        "already-exists",
+        "An organization with this name already exists"
+      );
+    }
+
     const orgRef = admin.firestore().collection("orgs").doc();
 
     // 1. Create timestamp for createdAt field
@@ -50,12 +227,16 @@ exports.createOrg = onCall(async (request) => {
       name,
       createdById,
       createdByEmail,
-      createdLoginEmail, // keep the password on the frontend for hiring managers to ss
+      createdLoginEmail,
       createdAt,
       companySize,
       industry,
       location,
       companyDescription,
+      missionStatement,
+      companyValues,
+      jobIds: [],
+
       // Initialize other fields as needed
       stripeCustomerId: null,
       stripeSubscriptionId: null,
@@ -93,11 +274,12 @@ exports.createOrg = onCall(async (request) => {
       hiringManagerId: hiringManagerUserRecord.uid,
       message: "Organization created successfully",
     };
-  } catch (authError) {
-    console.error("Error creating user account:", authError);
-    // Consider rolling back org creation if user creation fails
-    await orgRef.delete();
-    throw new HttpsError("internal", "Error creating user account");
+  } catch (error) {
+    console.error("Error creating organization:", error);
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    throw new HttpsError("internal", "Error creating organization");
   }
 });
 
