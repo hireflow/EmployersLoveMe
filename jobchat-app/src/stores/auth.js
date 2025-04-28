@@ -4,6 +4,8 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   signOut,
+  setPersistence,
+  browserLocalPersistence,
 } from "firebase/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { app } from "@/firebase.config";
@@ -15,10 +17,16 @@ export const useAuthStore = defineStore("auth", () => {
   const loading = ref(true);
   const error = ref(null);
 
-  const initialize = () => {
-    return onAuthStateChanged(auth, (firebaseUser) => {
-      user.value = firebaseUser;
-      loading.value = false;
+  const initialize = async () => {
+    // Set persistence to LOCAL
+    await setPersistence(auth, browserLocalPersistence);
+
+    return new Promise((resolve) => {
+      const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+        user.value = firebaseUser;
+        loading.value = false;
+        resolve(unsubscribe);
+      });
     });
   };
 

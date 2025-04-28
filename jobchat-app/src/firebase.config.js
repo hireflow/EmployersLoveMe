@@ -1,6 +1,10 @@
 // jobchat-app/src/firebase.config.js
 import { initializeApp } from "firebase/app";
-import { getAuth } from "firebase/auth";
+import {
+  getAuth,
+  setPersistence,
+  browserLocalPersistence,
+} from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 import { getFunctions } from "firebase/functions";
 
@@ -19,5 +23,7 @@ export const app = initializeApp(firebaseConfig);
 
 // Initialize services
 export const auth = getAuth(app);
+// Set persistence to LOCAL
+setPersistence(auth, browserLocalPersistence);
 export const db = getFirestore(app);
 export const functions = getFunctions(app);

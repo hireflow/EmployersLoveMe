@@ -7,5 +7,8 @@
   },
   "author": "",
   "license": "ISC",
-  "description": ""
+  "description": "",
+  "dependencies": {
+    "@mdi/font": "^7.4.47"
+  }
 }

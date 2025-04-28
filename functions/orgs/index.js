@@ -33,6 +33,10 @@ exports.createOrg = onCall(async (request) => {
     createdByEmail,
     createdLoginEmail,
     createdLoginPassword,
+    companySize,
+    industry,
+    location,
+    companyDescription,
   } = request.data;
   try {
     const orgRef = admin.firestore().collection("orgs").doc();
@@ -48,6 +52,10 @@ exports.createOrg = onCall(async (request) => {
       createdByEmail,
       createdLoginEmail, // keep the password on the frontend for hiring managers to ss
       createdAt,
+      companySize,
+      industry,
+      location,
+      companyDescription,
       // Initialize other fields as needed
       stripeCustomerId: null,
       stripeSubscriptionId: null,
@@ -89,9 +97,35 @@ exports.createOrg = onCall(async (request) => {
     console.error("Error creating user account:", authError);
     // Consider rolling back org creation if user creation fails
     await orgRef.delete();
-    throw new functions.https.HttpsError(
-      "internal",
-      "Error creating user account"
-    );
+    throw new HttpsError("internal", "Error creating user account");
+  }
+});
+
+exports.fetchUserOrgsByEmail = onCall(async (request) => {
+  const createdByEmail = request.data.createdByEmail;
+
+  try {
+    const orgRefs = admin
+      .firestore()
+      .collection("orgs")
+      .where("createdByEmail", "==", createdByEmail);
+
+    const orgDocs = await orgRefs.get();
+    const orgData = orgDocs.docs.map((doc) => doc.data());
+
+    if (orgDocs.empty) {
+      return {
+        success: false,
+        message: "No organizations found",
+      };
+    } else {
+      return {
+        success: true,
+        orgs: orgData,
+      };
+    }
+  } catch (error) {
+    console.error("Error fetching user orgs:", error);
+    throw new HttpsError("internal", "Error fetching user orgs");
   }
 });

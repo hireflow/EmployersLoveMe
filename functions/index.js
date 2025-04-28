@@ -17,6 +17,7 @@ exports.registerUser = authFunctions.registerUser;
 exports.signIn = authFunctions.signIn;
 exports.addOrganizationToUser = authFunctions.addOrganizationToUser;
 exports.createOrg = orgFunctions.createOrg;
+exports.fetchUserOrgsByEmail = orgFunctions.fetchUserOrgsByEmail;
 
 // Example HTTP function
 exports.helloWorld = onRequest(

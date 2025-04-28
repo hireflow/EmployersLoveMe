@@ -24,11 +24,26 @@ const router = createRouter({
 });
 
 // Navigation guard
-router.beforeEach(async (to) => {
+router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
 
+  // Wait for auth state to be initialized
+  if (authStore.loading) {
+    // Wait for the auth state to be initialized
+    await new Promise((resolve) => {
+      const unwatch = authStore.$subscribe((mutation, state) => {
+        if (!state.loading) {
+          unwatch();
+          resolve();
+        }
+      });
+    });
+  }
+
   if (to.meta.requiresAuth && !authStore.user) {
-    return "/login";
+    next("/login");
+  } else {
+    next();
   }
 });
 

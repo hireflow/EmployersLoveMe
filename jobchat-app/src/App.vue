@@ -1,15 +1,20 @@
 <template>
-  <router-view></router-view>
+  <router-view v-if="!authStore.loading"></router-view>
+  <div v-else class="loading">Loading...</div>
 </template>
 
 <script setup>
-import { onMounted } from "vue";
+import { onMounted, ref } from "vue";
 import { useAuthStore } from "@/stores/auth";
 
 const authStore = useAuthStore();
+const initialized = ref(false);
 
-onMounted(() => {
-  authStore.initialize();
+onMounted(async () => {
+  if (!initialized.value) {
+    await authStore.initialize();
+    initialized.value = true;
+  }
 });
 </script>
 
@@ -31,5 +36,14 @@ body {
   padding: 0;
   height: 100%;
   width: 100%;
+}
+
+.loading {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  height: 100vh;
+  font-size: 1.2em;
+  color: #666;
 }
 </style>
