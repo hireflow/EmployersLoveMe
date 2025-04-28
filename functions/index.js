@@ -12,12 +12,17 @@ admin.initializeApp();
 const authFunctions = require("./auth");
 const orgFunctions = require("./orgs");
 
-// Export auth functions directly
+// Export auth functions
 exports.registerUser = authFunctions.registerUser;
 exports.signIn = authFunctions.signIn;
 exports.addOrganizationToUser = authFunctions.addOrganizationToUser;
+
+// Export organization and job functions
 exports.createOrg = orgFunctions.createOrg;
 exports.fetchUserOrgsByEmail = orgFunctions.fetchUserOrgsByEmail;
+exports.createJob = orgFunctions.createJob;
+exports.getJobsByOrgId = orgFunctions.getJobsByOrgId;
+exports.addNewJobIdToOrg = orgFunctions.addNewJobIdToOrg;
 
 // Example HTTP function
 exports.helloWorld = onRequest(

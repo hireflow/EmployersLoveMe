@@ -16,6 +16,28 @@ export const useAuthStore = defineStore("auth", () => {
   const user = ref(null);
   const loading = ref(true);
   const error = ref(null);
+  const orgs = ref([]);
+  const selectedOrg = ref(null);
+
+  const setSelectedOrg = (org) => {
+    selectedOrg.value = org;
+  };
+
+  const fetchUserOrgs = async () => {
+    try {
+      const fetchUserOrgs = httpsCallable(functions, "fetchUserOrgsByEmail");
+      const result = await fetchUserOrgs({
+        createdByEmail: user.value.email,
+      });
+      orgs.value = result.data.orgs;
+      if (orgs.value.length > 0) {
+        selectedOrg.value = orgs.value[0];
+      }
+    } catch (err) {
+      error.value = err.message;
+      throw err;
+    }
+  };
 
   const initialize = async () => {
     // Set persistence to LOCAL
@@ -25,6 +47,9 @@ export const useAuthStore = defineStore("auth", () => {
       const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
         user.value = firebaseUser;
         loading.value = false;
+        if (user.value) {
+          fetchUserOrgs();
+        }
         resolve(unsubscribe);
       });
     });
@@ -70,5 +95,9 @@ export const useAuthStore = defineStore("auth", () => {
     register,
     login,
     logout,
+    orgs,
+    selectedOrg,
+    fetchUserOrgs,
+    setSelectedOrg,
   };
 });
