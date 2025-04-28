@@ -21,6 +21,8 @@ const companySize = ref("");
 const industry = ref("");
 const location = ref("");
 const companyDescription = ref("");
+const missionStatement = ref("");
+const companyValues = ref("");
 
 const handleCreateOrg = async () => {
   try {
@@ -37,6 +39,8 @@ const handleCreateOrg = async () => {
       industry: industry.value,
       location: location.value,
       companyDescription: companyDescription.value,
+      missionStatement: missionStatement.value,
+      companyValues: companyValues.value,
     });
 
     // reset the form fields and then toggle the form
@@ -125,6 +129,18 @@ const handleLogout = async () => {
           type="text"
           v-model="companyDescription"
           placeholder="Company Description"
+          required
+        />
+        <input
+          type="text"
+          v-model="missionStatement"
+          placeholder="Mission Statement"
+          required
+        />
+        <input
+          type="text"
+          v-model="companyValues"
+          placeholder="Company Values"
           required
         />
 
