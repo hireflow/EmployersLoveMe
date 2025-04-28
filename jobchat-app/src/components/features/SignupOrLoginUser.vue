@@ -5,7 +5,7 @@ import { useAuthStore } from "@/stores/auth";
 
 const router = useRouter();
 const authStore = useAuthStore();
-
+// fart bnalls
 // Form fields
 const email = ref("");
 const password = ref("");
