@@ -165,6 +165,18 @@ exports.getJobsByOrgId = onCall(async (request) => {
   }
 });
 
+exports.updateJobById = onCall(async (request) => {
+  const { jobId, updatedJobData } = request.data;
+
+  const jobRef = admin.firestore().collection("jobs").doc(jobId);
+  await jobRef.update(updatedJobData);
+
+  return {
+    success: true,
+    message: "Job updated successfully",
+  };
+});
+
 exports.addNewJobIdToOrg = onCall(async (request) => {
   const { newJobId, orgId } = request.data;
   const orgRef = admin.firestore().collection("orgs").doc(orgId);

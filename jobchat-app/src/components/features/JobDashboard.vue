@@ -5,6 +5,9 @@ import { getFunctions, httpsCallable } from "firebase/functions";
 import { watch, onMounted } from "vue";
 import { useAuthStore } from "@/stores/auth";
 import { ref } from "vue";
+import { defineAsyncComponent } from "vue";
+import LoadingSpinner from "@/components/ui/LoadingSpinner.vue";
+import ErrorBoundary from "@/components/ui/ErrorBoundary.vue";
 
 const authStore = useAuthStore();
 const functions = getFunctions();
@@ -12,6 +15,9 @@ const getJobsByOrgId = httpsCallable(functions, "getJobsByOrgId");
 
 const jobs = ref([]);
 const showJobForm = ref(false);
+const showEditModal = ref(false);
+const showChatbotModal = ref(false);
+const selectedJob = ref(null);
 const errorMessage = ref("");
 const successMessage = ref("");
 
@@ -88,7 +94,7 @@ onMounted(() => {
 });
 
 const createJob = httpsCallable(functions, "createJob");
-
+const updateJobById = httpsCallable(functions, "updateJobById");
 const createNewJob = async () => {
   try {
     errorMessage.value = "";
@@ -172,345 +178,417 @@ const toggleJobForm = () => {
   errorMessage.value = "";
   successMessage.value = "";
 };
+
+const openEditModal = (job) => {
+  selectedJob.value = { ...job };
+  showEditModal.value = true;
+};
+
+const closeEditModal = () => {
+  selectedJob.value = null;
+  showEditModal.value = false;
+};
+
+const updateJob = async () => {
+  try {
+    errorMessage.value = "";
+    successMessage.value = "";
+
+    const result = await updateJobById({
+      jobId: selectedJob.value.id,
+      updatedJobData: {
+        jobTitle: selectedJob.value.jobTitle,
+        jobDepartment: selectedJob.value.jobDepartment,
+        jobDescription: selectedJob.value.jobDescription,
+        jobLocation: selectedJob.value.jobLocation,
+        jobSalary: selectedJob.value.jobSalary,
+        employmentType: selectedJob.value.employmentType,
+        expectedJobDuration: selectedJob.value.expectedJobDuration,
+        applicationDeadline: selectedJob.value.applicationDeadline,
+        salaryRange: selectedJob.value.salaryRange,
+        responsibilities: selectedJob.value.responsibilities,
+        requiredSkills: selectedJob.value.requiredSkills,
+        preferredSkills: selectedJob.value.preferredSkills,
+        minExperience: selectedJob.value.minExperience,
+        requiredCertifications: selectedJob.value.requiredCertifications,
+        educationRequirements: selectedJob.value.educationRequirements,
+        workEnvironment: selectedJob.value.workEnvironment,
+        teamDynamics: selectedJob.value.teamDynamics,
+        growthOpportunities: selectedJob.value.growthOpportunities,
+        interviewStages: selectedJob.value.interviewStages,
+        diversityInitiatives: selectedJob.value.diversityInitiatives,
+        benefitsPackage: selectedJob.value.benefitsPackage,
+        remoteWorkPolicy: selectedJob.value.remoteWorkPolicy,
+        travelRequirements: selectedJob.value.travelRequirements,
+        onboardingProcess: selectedJob.value.onboardingProcess,
+        teamSize: selectedJob.value.teamSize,
+        techStack: selectedJob.value.techStack,
+        candidateResourceLinks: selectedJob.value.candidateResourceLinks,
+      },
+    });
+
+    if (result.data.success) {
+      await fetchJobs();
+      successMessage.value = "Job updated successfully!";
+      closeEditModal();
+    } else {
+      errorMessage.value = "Failed to update job. Please try again.";
+    }
+  } catch (error) {
+    console.error("Error updating job:", error);
+    errorMessage.value = "Failed to update job. Please try again.";
+  }
+};
+
+const openChatbotModal = (job) => {
+  selectedJob.value = { ...job };
+  showChatbotModal.value = true;
+};
+
+const closeChatbotModal = () => {
+  selectedJob.value = null;
+  showChatbotModal.value = false;
+};
+
+const updateChatbotSettings = async (settings) => {
+  try {
+    errorMessage.value = "";
+    successMessage.value = "";
+
+    const result = await updateJobById({
+      jobId: selectedJob.value.id,
+      updatedJobData: {
+        ...selectedJob.value,
+        chatbotSettings: settings,
+      },
+    });
+
+    if (result.data.success) {
+      await fetchJobs();
+      successMessage.value = "Chatbot settings updated successfully!";
+      closeChatbotModal();
+    } else {
+      errorMessage.value =
+        "Failed to update chatbot settings. Please try again.";
+    }
+  } catch (error) {
+    console.error("Error updating chatbot settings:", error);
+    errorMessage.value = "Failed to update chatbot settings. Please try again.";
+  }
+};
+
+// Lazy load the modals
+const JobForm = defineAsyncComponent(() =>
+  import("@/components/features/JobForm.vue")
+);
+const JobEditModal = defineAsyncComponent(() =>
+  import("@/components/features/JobEditModal.vue")
+);
+const ChatbotConfigModal = defineAsyncComponent(() =>
+  import("@/components/features/ChatbotConfigModal.vue")
+);
 </script>
 
 <template>
   <div class="job-dashboard">
-    <h1>Jobs for {{ authStore.selectedOrg?.name }}</h1>
-
-    <div v-if="errorMessage" class="error-message">
-      {{ errorMessage }}
+    <div class="dashboard-header">
+      <h1>Jobs for {{ authStore.selectedOrg?.name }}</h1>
+      <button @click="toggleJobForm" class="create-button">
+        {{ showJobForm ? "Cancel" : "Create New Job" }}
+      </button>
     </div>
 
-    <div v-if="successMessage" class="success-message">
-      {{ successMessage }}
+    <div class="dashboard-messages">
+      <div v-if="errorMessage" class="error-message">
+        {{ errorMessage }}
+      </div>
+      <div v-if="successMessage" class="success-message">
+        {{ successMessage }}
+      </div>
     </div>
 
-    <button @click="toggleJobForm" class="create-button">
-      {{ showJobForm ? "Cancel" : "Create New Job" }}
-    </button>
+    <div class="dashboard-content">
+      <ErrorBoundary>
+        <Suspense>
+          <template #default>
+            <JobForm
+              v-if="showJobForm"
+              @submit="createNewJob"
+              @cancel="toggleJobForm"
+            />
+          </template>
+          <template #fallback>
+            <LoadingSpinner message="Loading job form..." />
+          </template>
+        </Suspense>
+      </ErrorBoundary>
 
-    <div v-if="showJobForm" class="job-form">
-      <h2>Create New Job</h2>
-      <form @submit.prevent="createNewJob" class="form-grid">
-        <div class="form-group">
-          <label>Basic Information</label>
-          <input
-            type="text"
-            v-model="jobTitle"
-            placeholder="Job Title"
-            required
-          />
-          <input
-            type="text"
-            v-model="jobDepartment"
-            placeholder="Job Department"
-            required
-          />
-          <textarea
-            v-model="jobDescription"
-            placeholder="Job Description"
-            required
-          ></textarea>
-          <input
-            type="text"
-            v-model="teamSize"
-            placeholder="Team Size"
-            required
-          />
+      <div v-if="!showJobForm" class="jobs-section">
+        <div class="section-header">
+          <h2>Current Jobs</h2>
+          <p v-if="jobs.length === 0" class="no-jobs-message">
+            No jobs found for this organization.
+          </p>
         </div>
 
-        <div class="form-group">
-          <label>Location & Compensation</label>
-          <input
-            type="text"
-            v-model="jobLocation"
-            placeholder="Job Location"
-            required
-          />
-          <input
-            type="text"
-            v-model="salaryRange"
-            placeholder="Salary Range"
-            required
-          />
-          <input
-            type="text"
-            v-model="employmentType"
-            placeholder="Employment Type (e.g., Full-time, Part-time)"
-            required
-          />
-          <input
-            type="text"
-            v-model="expectedJobDuration"
-            placeholder="Expected Job Duration"
-            required
-          />
-          <input
-            type="date"
-            v-model="applicationDeadline"
-            placeholder="Application Deadline"
-            required
-          />
-        </div>
+        <div class="jobs-grid">
+          <div v-for="job in jobs" :key="job.id" class="job-card">
+            <div class="job-card-header">
+              <h3>{{ job.jobTitle }}</h3>
+              <span class="job-department">{{ job.jobDepartment }}</span>
+            </div>
 
-        <div class="form-group">
-          <label>Requirements & Skills</label>
-          <textarea
-            v-model="responsibilities"
-            placeholder="Job Responsibilities"
-            required
-          ></textarea>
-          <textarea
-            v-model="requiredSkills"
-            placeholder="Required Skills"
-            required
-          ></textarea>
-          <textarea
-            v-model="preferredSkills"
-            placeholder="Preferred Skills"
-          ></textarea>
-          <input
-            type="text"
-            v-model="minExperience"
-            placeholder="Minimum Experience"
-            required
-          />
-          <input
-            type="text"
-            v-model="educationRequirements"
-            placeholder="Education Requirements"
-            required
-          />
-          <input
-            type="text"
-            v-model="requiredCertifications"
-            placeholder="Required Certifications"
-          />
-          <textarea
-            v-model="techStack"
-            placeholder="Technical Stack Requirements"
-          ></textarea>
-        </div>
+            <div class="job-card-content">
+              <div class="job-info">
+                <div class="info-item">
+                  <span class="label">Location:</span>
+                  <span class="value">{{ job.jobLocation }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">Team Size:</span>
+                  <span class="value">{{ job.teamSize }}</span>
+                </div>
+              </div>
 
-        <div class="form-group">
-          <label>Work Environment & Culture</label>
-          <textarea
-            v-model="workEnvironment"
-            placeholder="Work Environment Description"
-          ></textarea>
-          <textarea
-            v-model="teamDynamics"
-            placeholder="Team Dynamics"
-          ></textarea>
-          <textarea
-            v-model="growthOpportunities"
-            placeholder="Growth & Development Opportunities"
-            required
-          ></textarea>
-          <textarea
-            v-model="diversityInitiatives"
-            placeholder="Diversity & Inclusion Initiatives"
-          ></textarea>
-        </div>
+              <div class="job-description">
+                <p>{{ job.jobDescription }}</p>
+              </div>
+            </div>
 
-        <div class="form-group">
-          <label>Benefits & Policies</label>
-          <textarea
-            v-model="benefitsPackage"
-            placeholder="Benefits Package Details"
-            required
-          ></textarea>
-          <textarea
-            v-model="remoteWorkPolicy"
-            placeholder="Remote Work Policy"
-            required
-          ></textarea>
-          <textarea
-            v-model="travelRequirements"
-            placeholder="Travel Requirements"
-          ></textarea>
-        </div>
-
-        <div class="form-group">
-          <label>Process & Resources</label>
-          <textarea
-            v-model="interviewStages"
-            placeholder="Interview Process Stages"
-            required
-          ></textarea>
-          <textarea
-            v-model="onboardingProcess"
-            placeholder="Onboarding Process"
-          ></textarea>
-          <textarea
-            v-model="candidateResourceLinks"
-            placeholder="Additional Resources for Candidates (comma-separated links)"
-          ></textarea>
-        </div>
-
-        <button type="submit" class="submit-button">Create Job</button>
-      </form>
-    </div>
-
-    <div v-if="jobs.length > 0" class="jobs-list">
-      <h2>Current Jobs</h2>
-      <div class="job-cards">
-        <div v-for="job in jobs" :key="job.id" class="job-card">
-          <h3>{{ job.jobTitle }}</h3>
-          <p><strong>Department:</strong> {{ job.jobDepartment }}</p>
-          <p><strong>Location:</strong> {{ job.jobLocation }}</p>
-          <p class="job-description">{{ job.jobDescription }}</p>
+            <div class="job-card-actions">
+              <button @click="openEditModal(job)" class="action-button">
+                Edit Details
+              </button>
+              <button @click="openChatbotModal(job)" class="action-button">
+                Edit Config
+              </button>
+            </div>
+          </div>
         </div>
       </div>
     </div>
-    <div v-else-if="!showJobForm" class="no-jobs">
-      <p>No jobs found for this organization.</p>
-    </div>
+
+    <ErrorBoundary>
+      <Suspense>
+        <template #default>
+          <JobEditModal
+            v-if="showEditModal"
+            :show="showEditModal"
+            :job="selectedJob"
+            @submit="updateJob"
+            @close="closeEditModal"
+          />
+        </template>
+        <template #fallback>
+          <LoadingSpinner message="Loading edit form..." />
+        </template>
+      </Suspense>
+    </ErrorBoundary>
+
+    <ErrorBoundary>
+      <Suspense>
+        <template #default>
+          <ChatbotConfigModal
+            v-if="showChatbotModal"
+            :show="showChatbotModal"
+            :job="selectedJob"
+            @submit="updateChatbotSettings"
+            @close="closeChatbotModal"
+          />
+        </template>
+        <template #fallback>
+          <LoadingSpinner message="Loading chatbot settings..." />
+        </template>
+      </Suspense>
+    </ErrorBoundary>
   </div>
 </template>
 
 <style scoped>
 .job-dashboard {
-  padding: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 2rem;
+}
+
+.dashboard-header h1 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 2rem;
+}
+
+.dashboard-messages {
+  margin-bottom: 1.5rem;
+}
+
+.error-message,
+.success-message {
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
 }
 
 .error-message {
-  color: red;
   background-color: #ffebee;
-  padding: 10px;
-  border-radius: 4px;
-  margin: 10px 0;
+  color: #c62828;
 }
 
 .success-message {
-  color: green;
   background-color: #e8f5e9;
-  padding: 10px;
-  border-radius: 4px;
-  margin: 10px 0;
+  color: #2e7d32;
 }
 
 .create-button {
   background-color: #1976d2;
   color: white;
-  padding: 10px 20px;
+  padding: 0.75rem 1.5rem;
   border: none;
-  border-radius: 4px;
+  border-radius: 6px;
+  font-size: 1rem;
+  font-weight: 500;
   cursor: pointer;
-  margin: 20px 0;
+  transition: background-color 0.3s ease;
 }
 
 .create-button:hover {
   background-color: #1565c0;
 }
 
-.job-form {
-  background-color: #f5f5f5;
-  padding: 20px;
-  border-radius: 4px;
-  margin: 20px 0;
+.dashboard-content {
+  background-color: #f8f9fa;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
 }
 
-.form-grid {
-  display: grid;
-  gap: 20px;
-  max-width: 800px;
-  margin: 0 auto;
+.section-header {
+  margin-bottom: 2rem;
 }
 
-.form-group {
-  display: flex;
-  flex-direction: column;
-  gap: 15px;
-  background-color: white;
-  padding: 20px;
-  border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.form-group label {
-  font-weight: bold;
-  font-size: 1.1em;
+.section-header h2 {
   color: #2c3e50;
-  border-bottom: 2px solid #e0e0e0;
-  padding-bottom: 8px;
-  margin-bottom: 5px;
+  margin: 0 0 0.5rem 0;
 }
 
-input,
-textarea {
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 6px;
-  font-size: 14px;
-  transition: border-color 0.3s ease;
+.no-jobs-message {
+  color: #666;
+  font-style: italic;
 }
 
-input:focus,
-textarea:focus {
-  outline: none;
-  border-color: #1976d2;
-  box-shadow: 0 0 0 2px rgba(25, 118, 210, 0.1);
-}
-
-textarea {
-  min-height: 100px;
-  resize: vertical;
-}
-
-input[type="date"] {
-  height: 42px;
-}
-
-.submit-button {
-  background-color: #4caf50;
-  color: white;
-  padding: 15px 30px;
-  border: none;
-  border-radius: 6px;
-  cursor: pointer;
-  margin-top: 20px;
-  font-size: 16px;
-  font-weight: 500;
-  transition: background-color 0.3s ease;
-}
-
-.submit-button:hover {
-  background-color: #45a049;
-}
-
-.jobs-list {
-  margin-top: 30px;
-}
-
-.job-cards {
+.jobs-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
-  gap: 20px;
-  margin-top: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+  gap: 1.5rem;
 }
 
 .job-card {
-  background-color: white;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  padding: 15px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
 }
 
-.job-card h3 {
-  margin: 0 0 10px 0;
+.job-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+}
+
+.job-card-header {
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.job-card-header h3 {
+  margin: 0 0 0.5rem 0;
   color: #1976d2;
+  font-size: 1.25rem;
+}
+
+.job-department {
+  color: #666;
+  font-size: 0.9rem;
+}
+
+.job-card-content {
+  padding: 1.5rem;
+}
+
+.job-info {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.label {
+  font-size: 0.8rem;
+  color: #666;
+  margin-bottom: 0.25rem;
+}
+
+.value {
+  font-weight: 500;
+  color: #2c3e50;
 }
 
 .job-description {
-  margin-top: 10px;
   color: #666;
+  font-size: 0.95rem;
+  line-height: 1.5;
+  margin-top: 1rem;
 }
 
-.no-jobs {
-  text-align: center;
-  color: #666;
-  margin-top: 30px;
+.job-card-actions {
+  padding: 1rem 1.5rem;
+  background-color: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  gap: 1rem;
+  justify-content: flex-end;
+}
+
+.action-button {
+  background-color: #1976d2;
+  color: white;
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.action-button:hover {
+  background-color: #1565c0;
+}
+
+@media (max-width: 768px) {
+  .job-dashboard {
+    padding: 1rem;
+  }
+
+  .dashboard-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .jobs-grid {
+    grid-template-columns: 1fr;
+  }
 }
 </style>
