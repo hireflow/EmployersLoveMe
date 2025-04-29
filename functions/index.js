@@ -18,6 +18,7 @@ exports.signIn = authFunctions.signIn;
 exports.addOrganizationToUser = authFunctions.addOrganizationToUser;
 
 // Export organization and job functions
+exports.updateJobById = orgFunctions.updateJobById;
 exports.createOrg = orgFunctions.createOrg;
 exports.fetchUserOrgsByEmail = orgFunctions.fetchUserOrgsByEmail;
 exports.createJob = orgFunctions.createJob;
