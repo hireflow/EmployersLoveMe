@@ -1,5 +1,4 @@
-// accept selected organization as a prop, display the jobs for the selected
-organization
+
 <script setup>
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { watch, onMounted } from "vue";

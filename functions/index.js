@@ -36,3 +36,4 @@ exports.helloWorld = onRequest(
     response.send("Hello from Firebase!");
   }
 );
+// lol
