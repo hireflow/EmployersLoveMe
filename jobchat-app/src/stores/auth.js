@@ -1,3 +1,13 @@
+/**
+ * Authentication Store
+ *
+ * This store manages all authentication-related state and operations:
+ * - User authentication state
+ * - Organization management
+ * - Login/Logout operations
+ * - User registration
+ */
+
 import { defineStore } from "pinia";
 import { ref, computed } from "vue";
 import {
@@ -21,12 +31,14 @@ export const useAuthStore = defineStore("auth", () => {
   const selectedOrg = ref(null);
   const lastSelectedOrgId = ref(null); // Keep track of last selected org
 
-  // Computed
+  // Computed Properties
   const isAuthenticated = computed(() => !!user.value);
   const hasOrgs = computed(() => orgs.value.length > 0);
   const currentOrg = computed(() => selectedOrg.value);
 
-  // Reset state to initial values
+  /**
+   * Resets all state to initial values
+   */
   const resetState = () => {
     user.value = null;
     orgs.value = [];
@@ -35,11 +47,17 @@ export const useAuthStore = defineStore("auth", () => {
     lastSelectedOrgId.value = null;
   };
 
-  // Clear error state
+  /**
+   * Clears any existing error state
+   */
   const clearError = () => {
     error.value = null;
   };
 
+  /**
+   * Sets the currently selected organization
+   * @param {Object} org - The organization to select
+   */
   const setSelectedOrg = async (org) => {
     try {
       if (!org) {
@@ -58,14 +76,16 @@ export const useAuthStore = defineStore("auth", () => {
 
       selectedOrg.value = foundOrg;
       lastSelectedOrgId.value = foundOrg.id;
-
-      // Could add additional org-specific initialization here if needed
     } catch (err) {
       console.error("Error setting selected organization:", err);
       error.value = err.message;
     }
   };
 
+  /**
+   * Fetches organizations associated with the current user
+   * @param {boolean} forceRefresh - Whether to force a refresh of the orgs list
+   */
   const fetchUserOrgs = async (forceRefresh = false) => {
     try {
       if (!user.value?.email) {
@@ -112,6 +132,9 @@ export const useAuthStore = defineStore("auth", () => {
     }
   };
 
+  /**
+   * Initializes the authentication state and sets up auth state listener
+   */
   const initialize = async () => {
     try {
       loading.value = true;
@@ -147,6 +170,12 @@ export const useAuthStore = defineStore("auth", () => {
     }
   };
 
+  /**
+   * Registers a new user
+   * @param {string} email - User's email
+   * @param {string} password - User's password
+   * @param {Object} additionalData - Additional user data
+   */
   const register = async (email, password, additionalData = {}) => {
     try {
       loading.value = true;
@@ -167,6 +196,11 @@ export const useAuthStore = defineStore("auth", () => {
     }
   };
 
+  /**
+   * Logs in a user
+   * @param {string} email - User's email
+   * @param {string} password - User's password
+   */
   const login = async (email, password) => {
     try {
       loading.value = true;
@@ -183,6 +217,9 @@ export const useAuthStore = defineStore("auth", () => {
     }
   };
 
+  /**
+   * Logs out the current user
+   */
   const logout = async () => {
     try {
       loading.value = true;

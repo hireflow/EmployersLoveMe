@@ -1,7 +1,17 @@
+/**
+ * Vue Router Configuration
+ *
+ * This file defines the application's routing configuration:
+ * - Route definitions
+ * - Navigation guards
+ * - Authentication protection
+ */
+
 import { createRouter, createWebHistory } from "vue-router";
 // import { auth } from '../firebase' TO-DO: later
 import { useAuthStore } from "@/stores";
 
+// Define application routes
 const routes = [
   {
     path: "/",
@@ -18,12 +28,20 @@ const routes = [
   },
 ];
 
+// Create router instance
 const router = createRouter({
   history: createWebHistory(),
   routes,
 });
 
-// Navigation guard
+/**
+ * Global navigation guard
+ *
+ * Handles:
+ * - Authentication state initialization
+ * - Protected route access
+ * - Redirects to login for unauthenticated users
+ */
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
 
@@ -40,6 +58,7 @@ router.beforeEach(async (to, from, next) => {
     });
   }
 
+  // Check if route requires authentication
   if (to.meta.requiresAuth && !authStore.user) {
     next("/login");
   } else {
