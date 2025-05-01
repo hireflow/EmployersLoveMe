@@ -1,9 +1,23 @@
+<!--
+  Root component of the JobChat application
+  
+  This component serves as the main container for the application:
+  - Handles authentication state and initialization
+  - Provides the main layout structure
+  - Manages routing through router-view
+-->
+
 <template>
   <router-view v-if="!authStore.loading"></router-view>
   <div v-else class="loading">Loading...</div>
 </template>
 
 <script setup>
+/**
+ * Root component setup
+ *
+ * Initializes the application state and authentication
+ */
 import { onMounted, ref } from "vue";
 import { useAuthStore } from "@/stores/auth";
 
@@ -19,6 +33,7 @@ onMounted(async () => {
 </script>
 
 <style>
+/* Global application styles */
 #app {
   font-family: Avenir, Helvetica, Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
@@ -30,6 +45,7 @@ onMounted(async () => {
   width: 100%;
 }
 
+/* Reset default browser styles */
 html,
 body {
   margin: 0;
@@ -38,6 +54,7 @@ body {
   width: 100%;
 }
 
+/* Loading state styles */
 .loading {
   display: flex;
   justify-content: center;
