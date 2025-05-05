@@ -13,7 +13,6 @@ const functions = getFunctions();
 const formActive = ref(false);
 const isSubmitting = ref(false);
 // Create a callable function reference
-const createOrg = httpsCallable(functions, "createOrg");
 const companyName = ref("");
 const errorMessage = ref("");
 const successMessage = ref("");
@@ -49,6 +48,7 @@ const handleCreateOrg = async () => {
     }
 
     // Create organization
+    const createOrg = httpsCallable(functions, "createOrg");
     const result = await createOrg({
       companyName: companyName.value,
       userId: authStore.user.uid,
@@ -179,14 +179,14 @@ const handleLogout = async () => {
         >
           <option value="">Select an organization</option>
           <option v-for="org in authStore.orgs" :key="org.id" :value="org.id">
-            {{ org.name }}
+            {{ org.companyName }}
           </option>
         </select>
 
         <div v-if="authStore.selectedOrg" class="selected-org">
           <h3>Current Organization</h3>
           <div class="org-details">
-            <p><strong>Name:</strong> {{ authStore.selectedOrg.name }}</p>
+            <p><strong>Name:</strong> {{ authStore.selectedOrg.companyName }}</p>
             <p>
               <strong>Industry:</strong> {{ authStore.selectedOrg.industry }}
             </p>

@@ -39,7 +39,7 @@
         />
         <input
           type="text"
-          v-model="formData.salaryRange"
+          v-model="formData.jobSalary"
           placeholder="Salary Range"
           required
         />
@@ -169,15 +169,15 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { reactive } from "vue";
 
-const formData = ref({
+const formData = reactive({
   jobTitle: "",
   jobDepartment: "",
   jobDescription: "",
   teamSize: "",
   jobLocation: "",
-  salaryRange: "",
+  jobSalary: "",
   employmentType: "",
   expectedJobDuration: "",
   applicationDeadline: "",

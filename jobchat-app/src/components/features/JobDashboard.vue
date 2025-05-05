@@ -21,33 +21,33 @@ const errorMessage = ref("");
 const successMessage = ref("");
 
 // Job form fields
-const jobTitle = ref("");
-const jobDepartment = ref("");
-const jobDescription = ref("");
-const jobLocation = ref("");
-const jobSalary = ref("");
-const employmentType = ref("");
-const expectedJobDuration = ref("");
-const applicationDeadline = ref("");
-const salaryRange = ref("");
-const responsibilities = ref("");
-const requiredSkills = ref("");
-const preferredSkills = ref("");
-const minExperience = ref("");
-const requiredCertifications = ref("");
-const educationRequirements = ref("");
-const workEnvironment = ref("");
-const teamDynamics = ref("");
-const growthOpportunities = ref("");
-const interviewStages = ref("");
-const diversityInitiatives = ref("");
-const benefitsPackage = ref("");
-const remoteWorkPolicy = ref("");
-const travelRequirements = ref("");
-const onboardingProcess = ref("");
-const teamSize = ref("");
-const techStack = ref("");
-const candidateResourceLinks = ref("");
+// const jobTitle = ref("");
+// const jobDepartment = ref("");
+// const jobDescription = ref("");
+// const jobLocation = ref("");
+// const jobSalary = ref("");
+// const employmentType = ref("");
+// const expectedJobDuration = ref("");
+// const applicationDeadline = ref("");
+// const salaryRange = ref("");
+// const responsibilities = ref("");
+// const requiredSkills = ref("");
+// const preferredSkills = ref("");
+// const minExperience = ref("");
+// const requiredCertifications = ref("");
+// const educationRequirements = ref("");
+// const workEnvironment = ref("");
+// const teamDynamics = ref("");
+// const growthOpportunities = ref("");
+// const interviewStages = ref("");
+// const diversityInitiatives = ref("");
+// const benefitsPackage = ref("");
+// const remoteWorkPolicy = ref("");
+// const travelRequirements = ref("");
+// const onboardingProcess = ref("");
+// const teamSize = ref("");
+// const techStack = ref("");
+// const candidateResourceLinks = ref("");
 
 const fetchJobs = async () => {
   try {
@@ -94,75 +94,30 @@ onMounted(() => {
 
 const createJob = httpsCallable(functions, "createJob");
 const updateJobById = httpsCallable(functions, "updateJobById");
-const createNewJob = async () => {
+const createNewJob = async (formData) => {
+  console.log(formData);
   try {
     errorMessage.value = "";
     successMessage.value = "";
 
+  //temp fix against double submit
+  if (
+    !formData.jobTitle
+  ) {
+    return;
+  }
+
     const result = await createJob({
       orgId: authStore.selectedOrg.id,
-      hiringManagerId: authStore.user.uid,
-      jobTitle: jobTitle.value,
-      jobDepartment: jobDepartment.value,
-      jobDescription: jobDescription.value,
-      jobLocation: jobLocation.value,
-      jobSalary: jobSalary.value,
-      employmentType: employmentType.value,
-      expectedJobDuration: expectedJobDuration.value,
-      applicationDeadline: applicationDeadline.value,
-      salaryRange: salaryRange.value,
-      responsibilities: responsibilities.value,
-      requiredSkills: requiredSkills.value,
-      preferredSkills: preferredSkills.value,
-      minExperience: minExperience.value,
-      requiredCertifications: requiredCertifications.value,
-      educationRequirements: educationRequirements.value,
-      workEnvironment: workEnvironment.value,
-      teamDynamics: teamDynamics.value,
-      growthOpportunities: growthOpportunities.value,
-      interviewStages: interviewStages.value,
-      diversityInitiatives: diversityInitiatives.value,
-      benefitsPackage: benefitsPackage.value,
-      remoteWorkPolicy: remoteWorkPolicy.value,
-      travelRequirements: travelRequirements.value,
-      onboardingProcess: onboardingProcess.value,
-      teamSize: teamSize.value,
-      techStack: techStack.value,
-      candidateResourceLinks: candidateResourceLinks.value,
+      hiringManagerIds: [authStore.user.uid],
+      ...formData
     });
 
     if (result.data.success) {
       await fetchJobs();
       successMessage.value = "Job created successfully!";
       showJobForm.value = false;
-      // Reset all form fields
-      jobTitle.value = "";
-      jobDepartment.value = "";
-      jobDescription.value = "";
-      jobLocation.value = "";
-      jobSalary.value = "";
-      employmentType.value = "";
-      expectedJobDuration.value = "";
-      applicationDeadline.value = "";
-      salaryRange.value = "";
-      responsibilities.value = "";
-      requiredSkills.value = "";
-      preferredSkills.value = "";
-      minExperience.value = "";
-      requiredCertifications.value = "";
-      educationRequirements.value = "";
-      workEnvironment.value = "";
-      teamDynamics.value = "";
-      growthOpportunities.value = "";
-      interviewStages.value = "";
-      diversityInitiatives.value = "";
-      benefitsPackage.value = "";
-      remoteWorkPolicy.value = "";
-      travelRequirements.value = "";
-      onboardingProcess.value = "";
-      teamSize.value = "";
-      techStack.value = "";
-      candidateResourceLinks.value = "";
+      // No need to reset individual fields as the form will be recreated when reopened
     } else {
       errorMessage.value = "Failed to create job. Please try again.";
     }
@@ -201,25 +156,13 @@ const updateJob = async () => {
         jobDescription: selectedJob.value.jobDescription,
         jobLocation: selectedJob.value.jobLocation,
         jobSalary: selectedJob.value.jobSalary,
-        employmentType: selectedJob.value.employmentType,
-        expectedJobDuration: selectedJob.value.expectedJobDuration,
         applicationDeadline: selectedJob.value.applicationDeadline,
-        salaryRange: selectedJob.value.salaryRange,
-        responsibilities: selectedJob.value.responsibilities,
         requiredSkills: selectedJob.value.requiredSkills,
         preferredSkills: selectedJob.value.preferredSkills,
-        minExperience: selectedJob.value.minExperience,
         requiredCertifications: selectedJob.value.requiredCertifications,
-        educationRequirements: selectedJob.value.educationRequirements,
-        workEnvironment: selectedJob.value.workEnvironment,
-        teamDynamics: selectedJob.value.teamDynamics,
-        growthOpportunities: selectedJob.value.growthOpportunities,
+        requiredEducation: selectedJob.value.educationRequirements,
         interviewStages: selectedJob.value.interviewStages,
-        diversityInitiatives: selectedJob.value.diversityInitiatives,
-        benefitsPackage: selectedJob.value.benefitsPackage,
-        remoteWorkPolicy: selectedJob.value.remoteWorkPolicy,
         travelRequirements: selectedJob.value.travelRequirements,
-        onboardingProcess: selectedJob.value.onboardingProcess,
         teamSize: selectedJob.value.teamSize,
         techStack: selectedJob.value.techStack,
         candidateResourceLinks: selectedJob.value.candidateResourceLinks,

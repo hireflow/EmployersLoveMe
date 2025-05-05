@@ -87,27 +87,20 @@ export const useAuthStore = defineStore("auth", () => {
    * @param {boolean} forceRefresh - Whether to force a refresh of the orgs list
    */
   const fetchUserOrgs = async (forceRefresh = false) => {
-    console.log("here");
     try {
       if (!user.value?.email) {
         orgs.value = [];
         selectedOrg.value = null;
         return;
       }
-      console.log("here now");
       // If we already have orgs and no force refresh, skip
       if (orgs.value.length > 0 && !forceRefresh) {
         return;
       }
-      console.log("here now again");
       const fetchUserOrganizations = httpsCallable(functions, "fetchUserOrgsById");
-      console.log("here now again here");
       const result = await fetchUserOrganizations({
         userId: user.value.uid,
       });
-      console.log("here now again wow");
-      console.log(result);
-
       // Ensure orgs is always an array
       orgs.value = result.data.success ? result.data.orgs : [];
 

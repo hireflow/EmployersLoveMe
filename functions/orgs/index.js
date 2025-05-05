@@ -31,30 +31,12 @@ const { HttpsError } = require("firebase-functions/v2/https");
 
 exports.createJob = onCall(async (request) => {
   try {
-    const {
-      jobTitle,
-      applicationDeadline,
-      applications,
-      hiringManagerIds,
-      orgId,
-      requiredEducation,
-      requiredCertifications,
-      requiredSkills,
-      preferredSkills,
-      requiredQuestions,
-      candidateResourceLinks,
-      jobType,
-      interviewStages,
-      jobDepartment,
-      jobDescription,
-      jobLocation,
-      teamSize,
-      techStack,
-      travelRequirements
-    } = request.data;
+    const data = request.data;
+    console.log(request.data);
 
     // Validate required fields
-    if (!orgId || !hiringManagerIds || !jobTitle || !jobDescription) {
+    if (!data.orgId || data.hiringManagerIds.length===0 || !data.jobTitle || !data.jobDescription) {
+      console.log(!data.orgId, data.hiringManagerIds.length===0, !data.jobTitle, !data.jobDescription)
       throw new HttpsError(
         "invalid-argument",
         "Missing required fields: orgId, hiringManagerIds, jobTitle, or jobDescription"
@@ -66,35 +48,35 @@ exports.createJob = onCall(async (request) => {
     const createdAt = admin.firestore.Timestamp.now();
 
     const jobData = {
-      jobTitle,
-      applicationDeadline,
-      applications,
-      hiringManagerIds,
-      orgId,
-      requiredEducation,
-      requiredCertifications,
-      requiredSkills,
-      preferredSkills,
-      requiredQuestions,
-      candidateResourceLinks,
-      jobType,
-      interviewStages,
-      jobDepartment,
-      jobDescription,
-      jobLocation,
-      teamSize,
-      techStack,
-      travelRequirements,
-      createdAt,
-      status: "active",
+      jobTitle: data.jobTitle,
+      applicationDeadline: data.applicationDeadline || "",
       applications: [],
+      hiringManagerIds: data.hiringManagerIds,
+      orgId: data.orgId,
+      requiredEducation: data.requiredEducation || "",
+      requiredCertifications: data.requiredCertifications || "",
+      requiredSkills: data.requiredSkills || "",
+      preferredSkills: data.preferredSkills || "",
+      requiredQuestions: data.requiredQuestions || "",
+      candidateResourceLinks: data.candidateResourceLinks || "",
+      jobType: data.jobType || "",
+      interviewStages: data.interviewStages || 0,
+      jobDepartment: data.jobDepartment || "",
+      jobDescription: data.jobDescription,
+      jobLocation: data.jobLocation || "",
+      teamSize: data.teamSize || 0,
+      techStack: data.techStack || "",
+      travelRequirements: data.travelRequirements || "",
+      createdAt: createdAt,
+      jobSalary: data.jobSalary || "",
+      status: "active",
     };
 
     // Create the job document
     await jobRef.set(jobData);
 
     // Add the job to the org's jobs array
-    const orgRef = admin.firestore().collection("orgs").doc(orgId);
+    const orgRef = admin.firestore().collection("orgs").doc(data.orgId);
     const orgDoc = await orgRef.get();
 
     if (!orgDoc.exists) {
@@ -180,32 +162,13 @@ exports.addNewJobIdToOrg = onCall(async (request) => {
 });
 
 exports.createOrg = onCall(async (request) => {
-  const {
-    userId,
-    companyDescription,
-    companyName,
-    companySize,
-    industry,
-    location,
-    logoUrl,
-    missionStatement,
-    paymentPlanCanceledDate,
-    paymentPlanCanceledReason,
-    paymentPlanEndDate,
-    paymentPlanStartDate,
-    paymentPlanStatus,
-    paymentPlanTier,
-    stripeCustomerId,
-    stripeSubscriptionId,
-  } = request.data;
+  const data = request.data;
 
   try {
-    // Validate required fields
-
-    console.log("request", request.data)
+    
     if (
-      !companyName ||
-      !userId
+      !data.companyName ||
+      !data.userId
     ) {
       throw new HttpsError(
         "invalid-argument",
@@ -217,7 +180,7 @@ exports.createOrg = onCall(async (request) => {
     const existingOrg = await admin
       .firestore()
       .collection("orgs")
-      .where("companyName", "==", companyName)
+      .where("companyName", "==", data.companyName)
       .get();
 
     if (!existingOrg.empty) {
@@ -232,24 +195,24 @@ exports.createOrg = onCall(async (request) => {
     const createdAt = admin.firestore.Timestamp.now();
 
     const orgData = {
-      companyDescription,
-      companyName,
-      companySize,
-      createdAt,
-      industry,
-      location,
-      logoUrl,
-      missionStatement,
-      hiringManagerIds: [userId],
-      jobIds: [],
-      paymentPlanCanceledDate,
-      paymentPlanCanceledReason,
-      paymentPlanEndDate,
-      paymentPlanStartDate,
-      paymentPlanStatus,
-      paymentPlanTier,
-      stripeCustomerId,
-      stripeSubscriptionId,
+      companyDescription: data.companyDescription || "",
+      companyName: data.companyName,
+      companySize: data.companySize || "",
+      createdAt: createdAt,
+      industry: data.industry || "",
+      location: data.location || "",
+      logoUrl: data.logoUrl || "",
+      missionStatement: data.missionStatement || "",
+      hiringManagerIds: [data.userId],
+      jobIds: data.jobIds || [],
+      paymentPlanCanceledDate: data.paymentPlanCanceledDate || "",
+      paymentPlanCanceledReason: data.paymentPlanCanceledReason || "",
+      paymentPlanEndDate: data.paymentPlanEndDate || "",
+      paymentPlanStartDate: data.paymentPlanStartDate || "",
+      paymentPlanStatus: data.paymentPlanStatus || "",
+      paymentPlanTier: data.paymentPlanTier || "",
+      stripeCustomerId: data.stripeCustomerId || "",
+      stripeSubscriptionId: data.stripeSubscriptionId || "",
     };
 
     // Use a batch write to ensure both documents are created atomically
@@ -259,11 +222,11 @@ exports.createOrg = onCall(async (request) => {
     batch.set(orgRef, orgData);
 
     // Add the hiring manager user document
-    const userRef = admin.firestore().collection("users").doc(userId);
+    const userRef = admin.firestore().collection("users").doc(data.userId);
 
     batch.update(userRef, {
       role: "hiring-manager",
-      organizations: arrayUnion(orgRef.id),
+      organizations: admin.firestore.FieldValue.arrayUnion(orgRef.id),
     });
 
     // Commit the batch
@@ -272,7 +235,7 @@ exports.createOrg = onCall(async (request) => {
     return {
       success: true,
       orgId: orgRef.id,
-      hiringManagerIds: [userId],
+      hiringManagerIds: [data.userId],
       message: "Organization created successfully",
     };
 
@@ -295,20 +258,17 @@ exports.fetchUserOrgsByEmail = onCall(async (request) => {
 
   try {
     // Query for orgs where user is the creator
-    console.log("1");
     const creatorOrgsRef = admin
       .firestore()
       .collection("orgs")
       .where("createdByEmail", "==", userEmail);
 
-    console.log("2");
     // Query for orgs where user is the hiring manager
     const hiringManagerOrgsRef = admin
       .firestore()
       .collection("orgs")
       .where("createdLoginEmail", "==", userEmail);
 
-    console.log("3");
     // Execute both queries in parallel
     const [creatorOrgsSnapshot, hiringManagerOrgsSnapshot] = await Promise.all([
       creatorOrgsRef.get(),
@@ -318,18 +278,15 @@ exports.fetchUserOrgsByEmail = onCall(async (request) => {
     // Combine and deduplicate results
     const allOrgs = new Map();
 
-    console.log("4");
     // Add creator orgs
     creatorOrgsSnapshot.docs.forEach((doc) => {
       allOrgs.set(doc.id, doc.data());
     });
 
-    console.log("5");
     // Add hiring manager orgs
     hiringManagerOrgsSnapshot.docs.forEach((doc) => {
       allOrgs.set(doc.id, doc.data());
     });
-    console.log("6");
 
     const orgData = Array.from(allOrgs.values());
 
@@ -360,18 +317,35 @@ exports.fetchUserOrgsById = onCall(async (request) => {
     if (userDoc.exists) {
       userOrgs = userDoc.data().organizations;
     }
-    
+
     if (userOrgs.length === 0) {
       return {
         success: false,
         message: "No organizations found",
       };
-    } else {
-      return {
-        success: true,
-        orgs: userOrgs,
-      };
     }
+
+    const orgFetches = userOrgs.map((orgId) =>
+      admin.firestore().collection("orgs").doc(orgId).get()
+    );
+
+    const orgDocs = await Promise.all(orgFetches);
+
+    const orgData = orgDocs
+      .filter((doc) => doc.exists)
+      .map((doc) => {
+        const data = doc.data();
+        return {
+          id: doc.id,
+          ...data,
+        };
+      });
+
+    return {
+      success: true,
+      orgs: orgData,
+    };
+    
   } catch (error) {
     console.error("Error fetching user:", error);
     throw new HttpsError("internal", "Error fetching user");
