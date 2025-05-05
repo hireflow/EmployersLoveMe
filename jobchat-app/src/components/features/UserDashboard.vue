@@ -14,18 +14,15 @@ const formActive = ref(false);
 const isSubmitting = ref(false);
 // Create a callable function reference
 const createOrg = httpsCallable(functions, "createOrg");
-const orgName = ref("");
+const companyName = ref("");
 const errorMessage = ref("");
 const successMessage = ref("");
 
-const createdLoginEmail = ref("");
-const createdLoginPassword = ref("");
 const companySize = ref("");
 const industry = ref("");
 const location = ref("");
 const companyDescription = ref("");
 const missionStatement = ref("");
-const companyValues = ref("");
 
 // Computed property to check if user is new (has no orgs)
 const isNewUser = computed(() => {
@@ -46,26 +43,20 @@ const handleCreateOrg = async () => {
 
     // Validate form fields
     if (
-      !orgName.value ||
-      !createdLoginEmail.value ||
-      !createdLoginPassword.value
+      !companyName.value
     ) {
       throw new Error("Please fill in all required fields");
     }
 
     // Create organization
     const result = await createOrg({
-      name: orgName.value,
-      createdById: authStore.user.uid,
-      createdByEmail: authStore.user.email,
-      createdLoginEmail: createdLoginEmail.value,
-      createdLoginPassword: createdLoginPassword.value,
+      companyName: companyName.value,
+      userId: authStore.user.uid,
       companySize: companySize.value,
       industry: industry.value,
       location: location.value,
       companyDescription: companyDescription.value,
       missionStatement: missionStatement.value,
-      companyValues: companyValues.value,
     });
 
     // Wait a short moment to ensure Firestore consistency
@@ -83,15 +74,12 @@ const handleCreateOrg = async () => {
     }
 
     // Reset form
-    orgName.value = "";
-    createdLoginEmail.value = "";
-    createdLoginPassword.value = "";
+    companyName.value = "";
     companySize.value = "";
     industry.value = "";
     location.value = "";
     companyDescription.value = "";
     missionStatement.value = "";
-    companyValues.value = "";
     formActive.value = false;
 
     successMessage.value =
@@ -224,11 +212,11 @@ const handleLogout = async () => {
       </h2>
       <form @submit.prevent="handleCreateOrg" class="form-grid">
         <div class="form-group">
-          <label for="orgName">Organization Name</label>
+          <label for="companyName">Organization Name</label>
           <input
-            id="orgName"
+            id="companyName"
             type="text"
-            v-model="orgName"
+            v-model="companyName"
             placeholder="Enter organization name"
             required
             :disabled="isSubmitting"

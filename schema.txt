@@ -1,0 +1,108 @@
+
+users
+{
+    userID: {
+        createdAt:
+        displayName:
+        email:
+        organizations: array []
+        role: 
+    }
+}
+
+jobs
+{
+    jobID:{
+        "jobTitle":
+        "applicationDeadline": "2025-04-29T14:00:00Z",
+        "applications": array or subcollection?,
+        "hiringManagerId": array []
+        "orgId":
+        "status":
+        "createdAt": "2025-04-29T12:00:00Z",
+        "requiredEducation": array []
+        "requiredCertifications": array []
+        "requiredSkills": array []
+        "preferredSkills": array [],
+        "requiredQuestions": array []
+        "candidateResourceLinks": [] array,
+        "jobType":
+        "interviewStages":
+        "jobDepartment":
+        "jobDescription":
+        "jobLocation":
+        "teamSize":
+        "techStack": array []
+        "travelRequirements"
+    }
+}
+
+org
+{
+    orgID:{
+        companyDescription:
+        companyName:
+        companySize:
+        createdAt:
+        hiringManagers: array [userId]
+        industry:
+        location:
+        logoUrl:
+        missionStatement: 
+        jobs: array [jobId1]
+        paymentPlanCanceledDate:
+        paymentPlanCanceledReason:
+        paymentPlanEndDate:
+        paymentPlanStartDate:
+        paymentPlanStatus:
+        paymentPlanTier:
+        stripeCustomerId:
+        stripeSubscriptionId:
+    }
+}
+
+candidates
+{	
+    candidateID: {
+        "name": "Jane Doe",
+        "email": "janedoe@example.com",
+        "phone": "555-123-4567",
+        "resumeUrl": "https://example.com/resume/jane.pdf",
+        "resumeBreakdown": {}
+        “applications”: [applicationID, applicationID]
+        "createdAt": "2025-04-29T12:00:00Z",
+        "updatedAt": "2025-04-29T12:00:00Z"
+	}	
+}
+	
+applications
+{
+    applicationID: {
+        "candidateId": "candidateId123",
+        "jobID": 
+        "applicationDate": "2025-04-29T14:00:00Z",
+        "status": "completed",
+        "messages": [
+            { "role": "system", "content": "Welcome to the interview!" },
+            { "role": "user", "content": "Hi, I'm ready." },
+            { "role": "assistant", "content": "Great! Let's get started..." },
+        ],
+        "reportID": reportID
+        "completedAt": "2025-04-29T15:00:00Z"
+    }
+}
+
+reports
+{   
+    reportID: {
+        "candidateId": candidateID,
+        "applicationId": interviewID,
+        "jobID":
+        "questionResponses": [{"question": "why?", "response": "because."}]
+        "summary": "Jane showed solid understanding of algorithms and was confident in her problem-solving.",
+        "score": 8.7,
+    }
+}
+
+
+

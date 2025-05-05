@@ -24,6 +24,7 @@ exports.fetchUserOrgsByEmail = orgFunctions.fetchUserOrgsByEmail;
 exports.createJob = orgFunctions.createJob;
 exports.getJobsByOrgId = orgFunctions.getJobsByOrgId;
 exports.addNewJobIdToOrg = orgFunctions.addNewJobIdToOrg;
+exports.fetchUserOrgsById = orgFunctions.fetchUserOrgsById;
 
 // Example HTTP function
 exports.helloWorld = onRequest(
