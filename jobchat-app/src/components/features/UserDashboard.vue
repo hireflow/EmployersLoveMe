@@ -12,6 +12,7 @@ const router = useRouter();
 const functions = getFunctions();
 const formActive = ref(false);
 const isSubmitting = ref(false);
+
 // Create a callable function reference
 const companyName = ref("");
 const errorMessage = ref("");
