@@ -10,6 +10,8 @@
 import { createRouter, createWebHistory } from "vue-router";
 // import { auth } from '../firebase' TO-DO: later
 import { useAuthStore } from "@/stores";
+import { useCandidateAuthStore } from "@/stores";
+
 
 // Define application routes
 const routes = [
@@ -56,6 +58,7 @@ const router = createRouter({
  */
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
+  const candidateAuthStore = useCandidateAuthStore();
 
   // Wait for auth state to be initialized
   if (authStore.loading) {
@@ -75,7 +78,7 @@ router.beforeEach(async (to, from, next) => {
     next("/login");
   }
   // Check for candidate authentication
-  else if (to.meta.requiresCandidateAuth) {
+  else if (to.meta.requiresCandidateAuth && !candidateAuthStore.candidate) {
     next({
       name: "CandidateLogin",
       query: { orgId: to.params.orgId, jobId: to.params.jobId },
