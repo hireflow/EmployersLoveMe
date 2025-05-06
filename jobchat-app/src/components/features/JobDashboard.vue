@@ -429,6 +429,12 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
                   }}</span>
                 </div>
               </div>
+
+              <div>
+                {{
+                  `http://localhost:8080/applications/${authStore?.selectedOrg?.id}/${job.id}`
+                }}
+              </div>
             </div>
 
             <div class="job-card-actions">

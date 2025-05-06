@@ -26,6 +26,13 @@ const routes = [
     path: "/login",
     component: () => import("@/components/features/SignupOrLoginUser.vue"),
   },
+  {
+    path: "/applications/:orgId/:jobId",
+    name: "ApplicationDetails",
+    component: () => import("@/components/features/ApplicationDetails.vue"),
+    props: true,
+    meta: { requiresAuth: true },
+  },
 ];
 
 // Create router instance
