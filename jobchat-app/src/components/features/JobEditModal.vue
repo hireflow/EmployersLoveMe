@@ -55,12 +55,6 @@
             required
           />
           <input
-            type="text"
-            v-model="formData.expectedJobDuration"
-            placeholder="Expected Job Duration"
-            required
-          />
-          <input
             type="date"
             v-model="formData.applicationDeadline"
             placeholder="Application Deadline"
