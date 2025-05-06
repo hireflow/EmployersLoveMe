@@ -31,7 +31,12 @@ const routes = [
     name: "ApplicationDetails",
     component: () => import("@/components/features/ApplicationDetails.vue"),
     props: true,
-    meta: { requiresAuth: true },
+    meta: { requiresCandidateAuth: true },
+  },
+  {
+    path: "/candidate-login",
+    name: "CandidateLogin",
+    component: () => import("@/components/features/CandidateLogin.vue"),
   },
 ];
 
@@ -65,10 +70,19 @@ router.beforeEach(async (to, from, next) => {
     });
   }
 
-  // Check if route requires authentication
+  // Check for regular user authentication
   if (to.meta.requiresAuth && !authStore.user) {
     next("/login");
-  } else {
+  }
+  // Check for candidate authentication
+  else if (to.meta.requiresCandidateAuth) {
+    next({
+      name: "CandidateLogin",
+      query: { orgId: to.params.orgId, jobId: to.params.jobId },
+    });
+  }
+  // If no special authentication is required, proceed
+  else {
     next();
   }
 });
