@@ -84,34 +84,6 @@ exports.createJob = onCall(async (request) => {
   }
 });
 
-// exports.getJobsByOrgId = onCall(async (request) => {
-//   try {
-//     const { orgId } = request.data;
-
-//     if (!orgId) {
-//       throw new HttpsError("invalid-argument", "orgId is required");
-//     }
-
-//     // Get all jobs for this org
-//     const orgDoc = await admin.firestore().collection("orgs").doc(orgId).get();
-//     let jobs = [];
-//     if (orgDoc.exists) {
-//       jobs = orgDoc.data().jobIds;
-//     }
-
-//     console.log("Fetched jobs:", jobs); // Add logging to help debug
-
-//     // fetch the entire job object
-
-//     return {
-//       success: true,
-//       data: jobs,
-//     };
-//   } catch (error) {
-//     console.error("Error fetching jobs:", error);
-//     throw new HttpsError("internal", "Error fetching jobs");
-//   }
-// });
 
 exports.getJobsByOrgId = onCall(async (request) => {
   try {

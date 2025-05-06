@@ -1,11 +1,13 @@
 <script setup>
 import { ref } from "vue";
 import { useRouter, useRoute } from "vue-router";
-import { useAuthStore } from "@/stores";
+import { useCandidateAuthStore } from "@/stores";
 
 const route = useRoute();
 const router = useRouter();
-const authStore = useAuthStore();
+const candidateAuthStore = useCandidateAuthStore();
+
+
 const email = ref("");
 const isExistingCandidateCheck = ref(false);
 const existingCandidateError = ref("");
@@ -14,8 +16,9 @@ const name = ref("");
 const phone = ref("");
 const loginError = ref("");
 const registrationError = ref("");
-const isRegistering = ref(false);
+const isRegistering = ref(true);
 const showRegistrationForm = ref(false); // Control visibility of registration fields
+const claimedId = ref(null);
 
 const checkExistingCandidate = async () => {
   isExistingCandidateCheck.value = true;
@@ -23,14 +26,15 @@ const checkExistingCandidate = async () => {
   showRegistrationForm.value = false; // Hide registration form initially
 
   try {
-    // TO-DO: Implement a callable function in your store to check if the email exists
-    const exists = await authStore.checkIfCandidateExists(email.value);
-
+    const result = await candidateAuthStore.checkIfCandidateExists(email.value);
+    const exists = result.exists;
     if (exists) {
       isRegistering.value = false; // Show login form
+      claimedId.value = result.claimedId;
     } else {
       isRegistering.value = true; // Prepare for registration
       showRegistrationForm.value = true; // Show registration fields
+      console.log("here");
     }
   } catch (error) {
     existingCandidateError.value = error.message || "Error checking email.";
@@ -47,14 +51,14 @@ const handleRegistration = async () => {
   }
 
   try {
-    await authStore.register(
+    await candidateAuthStore.register(
       email.value,
       password.value,
       name.value,
       phone.value
     );
 
-    if (authStore.candidate) {
+    if (candidateAuthStore.candidate) {
       redirectToApplicationDetailsOrDashboard();
     } else {
       registrationError.value =
@@ -75,10 +79,12 @@ const handleLogin = async () => {
   }
 
   try {
-    await authStore.login(email.value, password.value);
-    if (authStore.candidate) {
+    await candidateAuthStore.login(email.value, password.value, claimedId.value);
+    if (candidateAuthStore.candidate) {
+      claimedId.value = null;
       redirectToApplicationDetailsOrDashboard();
     } else {
+      claimedId.value = null;
       loginError.value = "Login failed.";
     }
   } catch (error) {
@@ -101,25 +107,25 @@ const redirectToApplicationDetailsOrDashboard = () => {
   <div>
     <h1>Candidate Login / Registration</h1>
 
-    <div v-if="!isRegistering && !showRegistrationForm">
+    <div v-if="isRegistering && !showRegistrationForm">
       <input type="email" v-model="email" placeholder="Enter your email" />
       <button
         @click="checkExistingCandidate"
-        :disabled="isExistingCandidateCheck || authStore.loading"
+        :disabled="isExistingCandidateCheck || candidateAuthStore.loading"
       >
         {{ isExistingCandidateCheck ? "Checking..." : "Continue" }}
       </button>
       <p v-if="existingCandidateError">{{ existingCandidateError }}</p>
     </div>
 
-    <div v-if="!isRegistering && showRegistrationForm">
+    <div v-if="isRegistering && showRegistrationForm">
       <h2>Register New Account</h2>
       <input type="email" v-model="email" placeholder="Email" disabled />
       <input type="password" v-model="password" placeholder="Password" />
       <input type="text" v-model="name" placeholder="Full Name" />
       <input type="tel" v-model="phone" placeholder="Phone Number" />
-      <button @click="handleRegistration" :disabled="authStore.loading">
-        {{ authStore.loading ? "Registering..." : "Register" }}
+      <button @click="handleRegistration" :disabled="candidateAuthStore.loading">
+        {{ candidateAuthStore.loading ? "Registering..." : "Register" }}
       </button>
       <p v-if="registrationError">{{ registrationError }}</p>
       <button
@@ -132,12 +138,12 @@ const redirectToApplicationDetailsOrDashboard = () => {
       </button>
     </div>
 
-    <div v-if="isRegistering && !showRegistrationForm">
+    <div v-if="!isRegistering && !showRegistrationForm">
       <h2>Login</h2>
       <input type="email" v-model="email" placeholder="Email" />
       <input type="password" v-model="password" placeholder="Password" />
-      <button @click="handleLogin" :disabled="authStore.loading">
-        {{ authStore.loading ? "Logging in..." : "Login" }}
+      <button @click="handleLogin" :disabled="candidateAuthStore.loading">
+        {{ candidateAuthStore.loading ? "Logging in..." : "Login" }}
       </button>
       <p v-if="loginError">{{ loginError }}</p>
       <button @click="isRegistering = false">

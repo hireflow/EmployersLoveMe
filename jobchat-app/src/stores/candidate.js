@@ -1,13 +1,12 @@
 import { defineStore } from "pinia";
 import { ref } from "vue";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { app } from "@/firebase.config";
 
-import {
-  registerCandidate,
-  signInCandidate,
-  checkCandidateEmailExists,
-} from "@/firebase/functions"; // Adjust the path as needed
 
-export const useAuthStore = defineStore("candidate-auth", () => {
+
+export const useCandidateAuthStore = defineStore("candidate-auth", () => {
+  const functions = getFunctions(app);
   const candidate = ref(null);
   const loading = ref(false);
   const error = ref(null);
@@ -16,8 +15,12 @@ export const useAuthStore = defineStore("candidate-auth", () => {
     loading.value = true;
     error.value = null;
     try {
+      const checkCandidateEmailExists = httpsCallable(functions, "checkCandidateEmailExists");
       const result = await checkCandidateEmailExists({ email: emailToCheck });
-      return result.data.exists; //function should return { data: { exists: boolean } }
+      return {
+        exists: result.data.exists,
+        claimedId: result.data.candidateId
+      };
     } catch (err) {
       error.value = err.message || "Error checking email existence.";
       throw error.value;
@@ -26,17 +29,19 @@ export const useAuthStore = defineStore("candidate-auth", () => {
     }
   };
 
-  const register = async (candidateEmail, candidatePassword, name, phone) => {
+  const register = async (candidateEmail, candidatePassword, resumeUrl, name, phone) => {
     loading.value = true;
     error.value = null;
     try {
+      const registerCandidate = httpsCallable(functions, "registerCandidate");
       const result = await registerCandidate({
         email: candidateEmail,
         password: candidatePassword,
+        resumeUrl,
         name,
         phone,
       });
-      candidate.value = result.data.candidate; // make the return for the cloud functions match this
+      candidate.value = result.data.candidate; 
     } catch (err) {
       error.value = err.message || "Could not register candidate.";
       throw error.value;
@@ -45,11 +50,13 @@ export const useAuthStore = defineStore("candidate-auth", () => {
     }
   };
 
-  const login = async (candidateEmail, candidatePassword) => {
+  const login = async (candidateEmail, candidatePassword, claimedId) => {
     loading.value = true;
     error.value = null;
     try {
+      const signInCandidate = httpsCallable(functions, "signInCandidate");
       const result = await signInCandidate({
+        claimedId,
         email: candidateEmail,
         password: candidatePassword,
       });
