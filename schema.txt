@@ -107,3 +107,43 @@ reports
 
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+// Job form fields
+// const jobTitle = ref("");
+// const jobDepartment = ref("");
+// const jobDescription = ref("");
+// const jobLocation = ref("");
+// const jobSalary = ref("");
+// const employmentType = ref("");
+// const expectedJobDuration = ref("");
+// const applicationDeadline = ref("");
+// const salaryRange = ref("");
+// const responsibilities = ref("");
+// const requiredSkills = ref("");
+// const preferredSkills = ref("");
+// const minExperience = ref("");
+// const requiredCertifications = ref("");
+// const educationRequirements = ref("");
+// const workEnvironment = ref("");
+// const teamDynamics = ref("");
+// const growthOpportunities = ref("");
+// const interviewStages = ref("");
+// const diversityInitiatives = ref("");
+// const benefitsPackage = ref("");
+// const remoteWorkPolicy = ref("");
+// const travelRequirements = ref("");
+// const onboardingProcess = ref("");
+// const teamSize = ref("");
+// const techStack = ref("");
+// const candidateResourceLinks = ref("");

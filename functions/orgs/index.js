@@ -2,41 +2,25 @@ const { onCall } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const { HttpsError } = require("firebase-functions/v2/https");
 
-// User who owns companies can log in and manage orgs
-// This user will give the hiring manager the created login credentials for the org
-// Hiring manager can log in and we will pre load the org (singular) that this account was made for
-// org
-// {
-//     orgID:{
-//         companyDescription:
-//         companyName:
-//         companySize:
-//         createdAt:
-//         hiringManagers: array [userId]
-//         industry:
-//         location:
-//         logoUrl:
-//         missionStatement: 
-//         jobIds: array [jobId1]
-//         paymentPlanCanceledDate:
-//         paymentPlanCanceledReason:
-//         paymentPlanEndDate:
-//         paymentPlanStartDate:
-//         paymentPlanStatus:
-//         paymentPlanTier:
-//         stripeCustomerId:
-//         stripeSubscriptionId:
-//     }
-// }
-
 exports.createJob = onCall(async (request) => {
   try {
     const data = request.data;
     console.log(request.data);
 
     // Validate required fields
-    if (!data.orgId || data.hiringManagerIds.length===0 || !data.jobTitle || !data.jobDescription) {
-      console.log(!data.orgId, data.hiringManagerIds.length===0, !data.jobTitle, !data.jobDescription)
+    if (
+      !data.orgId ||
+      !Array.isArray(data.hiringManagerIds) ||
+      data.hiringManagerIds.length === 0 ||
+      !data.jobTitle ||
+      !data.jobDescription
+    ) {
+      console.log(
+        !data.orgId,
+        data.hiringManagerIds.length === 0,
+        !data.jobTitle,
+        !data.jobDescription
+      );
       throw new HttpsError(
         "invalid-argument",
         "Missing required fields: orgId, hiringManagerIds, jobTitle, or jobDescription"
@@ -101,35 +85,112 @@ exports.createJob = onCall(async (request) => {
   }
 });
 
+// exports.getJobsByOrgId = onCall(async (request) => {
+//   try {
+//     const { orgId } = request.data;
+
+//     if (!orgId) {
+//       throw new HttpsError("invalid-argument", "orgId is required");
+//     }
+
+//     // Get all jobs for this org
+//     const orgDoc = await admin.firestore().collection("orgs").doc(orgId).get();
+//     let jobs = [];
+//     if (orgDoc.exists) {
+//       jobs = orgDoc.data().jobIds;
+//     }
+
+//     console.log("Fetched jobs:", jobs); // Add logging to help debug
+
+//     // fetch the entire job object
+
+//     return {
+//       success: true,
+//       data: jobs,
+//     };
+//   } catch (error) {
+//     console.error("Error fetching jobs:", error);
+//     throw new HttpsError("internal", "Error fetching jobs");
+//   }
+// });
+
 exports.getJobsByOrgId = onCall(async (request) => {
   try {
     const { orgId } = request.data;
+    if (!orgId)
+      throw new HttpsError(
+        "invalid-argument",
+        "orgId is required from request data"
+      );
 
-    if (!orgId) {
-      throw new HttpsError("invalid-argument", "orgId is required");
-    }
+    const orgsCollection = admin.firestore().collection("orgs");
+    const jobsCollection = admin.firestore().collection("jobs");
 
-    // Get all jobs for this org
-    const orgDoc = await admin.firestore().collection("orgs").doc(orgId).get();
-    let jobs = [];
+    const orgDoc = await orgsCollection.doc(orgId).get();
+    let jobIds = [];
     if (orgDoc.exists) {
-      jobs = orgDoc.data().jobIds;
+      const data = orgDoc.data();
+      if (data && data.jobIds && Array.isArray(data.jobIds)) {
+        jobIds = data.jobIds;
+      }
     }
 
-    console.log("Fetched jobs:", jobs); // Add logging to help debug
+    if (jobIds.length === 0) {
+      console.log("No jobs found for orgID: ", orgId);
+      return {
+        success: true,
+        data: [],
+      };
+    }
+    // get each ref that pertains to each id in jobIds
+
+    // right now jobIds looks like -> [1ZotxmT8Ski3yU6zctad, AfZh9ucHJ6S0cpFBMnDy] which is just Ids, not the object, on the frontend we would
+    // need to either fetch again or do it here so lets do it here
+    const jobDocRefs = jobIds.map((id) => jobsCollection.doc(id));
+
+    // fetch all job documents using getAll()
+    // getAll takes a spread array of document references
+    const jobDocSnapshots = await admin.firestore().getAll(...jobDocRefs);
+
+    // process now
+
+    const populatedJobs = jobDocSnapshots
+      .map((docSnapshot) => {
+        if (docSnapshot.exists) {
+          return { id: docSnapshot.id, ...docSnapshot.data() };
+        } else {
+          // job id is in jobIds but doesnt exist in our db
+          console.warn(`Job document with ID ${docSnapshot.id} not found.`);
+          return null;
+        }
+      })
+      .filter((job) => job !== null);
 
     return {
       success: true,
-      data: jobs,
+      jobIds,
+      data: populatedJobs,
     };
   } catch (error) {
-    console.error("Error fetching jobs:", error);
-    throw new HttpsError("internal", "Error fetching jobs");
+    console.error("Error fetching populated jobs by orgId:", error);
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    throw new HttpsError(
+      "internal",
+      "An internal error occurred while fetching jobs.",
+      error.message
+    );
   }
 });
 
 exports.updateJobById = onCall(async (request) => {
   const { jobId, updatedJobData } = request.data;
+  if (!jobId || !updatedJobData)
+    throw new HttpsError(
+      "invalid-argument",
+      "Missing required fields jobId and updatedJobData"
+    );
 
   const jobRef = admin.firestore().collection("jobs").doc(jobId);
   await jobRef.update(updatedJobData);
@@ -144,8 +205,11 @@ exports.addNewJobIdToOrg = onCall(async (request) => {
   const { newJobId, orgId } = request.data;
   const orgRef = admin.firestore().collection("orgs").doc(orgId);
 
-  const orgData = await orgRef.get();
-  const jobs = orgData.data().jobIds;
+  const orgDoc = await orgRef.get();
+  if (!orgDoc.exists) {
+    throw new HttpsError("not-found", "Organization not found.");
+  }
+  const jobs = orgDoc.data().jobIds || []; // Default to empty array
 
   if (!jobs.includes(newJobId)) {
     await orgRef.update({
@@ -165,11 +229,7 @@ exports.createOrg = onCall(async (request) => {
   const data = request.data;
 
   try {
-    
-    if (
-      !data.companyName ||
-      !data.userId
-    ) {
+    if (!data.companyName || !data.userId) {
       throw new HttpsError(
         "invalid-argument",
         "Missing required fields for organization creation"
@@ -238,8 +298,6 @@ exports.createOrg = onCall(async (request) => {
       hiringManagerIds: [data.userId],
       message: "Organization created successfully",
     };
-
-
   } catch (error) {
     console.error("Error creating organization:", error);
 
@@ -313,7 +371,7 @@ exports.fetchUserOrgsById = onCall(async (request) => {
   try {
     const userRef = admin.firestore().collection("users").doc(userId);
     const userDoc = await userRef.get();
-    let userOrgs = []
+    let userOrgs = [];
     if (userDoc.exists) {
       userOrgs = userDoc.data().organizations;
     }
@@ -345,7 +403,6 @@ exports.fetchUserOrgsById = onCall(async (request) => {
       success: true,
       orgs: orgData,
     };
-    
   } catch (error) {
     console.error("Error fetching user:", error);
     throw new HttpsError("internal", "Error fetching user");
