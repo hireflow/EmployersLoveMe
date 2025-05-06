@@ -1,0 +1,166 @@
+
+NavButton.vue Usage Tutorial
+
+This tutorial demonstrates how to use the NavButton.vue component in your Vue.js application.
+
+1. Installation
+
+   * Install Vue Router: If you haven't already, make sure you have Vue Router installed:
+
+     npm install vue-router@4
+
+   * Create router.js: Configure your routes in a router.js file (or similar):
+
+     import { createRouter, createWebHistory } from 'vue-router';
+     import Home from './components/Home.vue';
+     import User from './components/User.vue';
+     import Search from './components/Search.vue';
+     // ... other components
+
+     const routes = [
+       { path: '/', name: 'Home', component: Home },
+       { path: '/user/:id', name: 'User', component: User },
+       { path: '/search', name: 'Search', component: Search },
+       // ... other routes
+     ];
+
+     const router = createRouter({
+       history: createWebHistory(process.env.BASE_URL),
+       routes,
+     });
+
+     export default router;
+
+   * Use in main.js: Import and use the router in your main.js file:
+
+     import { createApp } from 'vue';
+     import App from './App.vue';
+     import router from './router';
+
+     const app = createApp(App);
+     app.use(router);
+     app.mount('#app');
+
+   * Create NavButton.vue: Create the NavButton.vue component in your components directory and paste the code from the previous section.
+
+2. Basic Usage
+
+   * Import the NavButton component and use it in your templates.
+
+     <template>
+       <div>
+         <NavButton path="/">Home</NavButton>
+       </div>
+     </template>
+     <script setup>
+     import NavButton from '@/components/NavButton.vue';
+     </script>
+
+     * This will create a simple button that, when clicked, navigates to the "/" path.
+
+3. Customization
+
+   * The NavButton component can be customized using props and slots:
+
+     * path (required): The destination path.  Can be a string or a route object.
+
+     * text (optional): The text displayed on the button.
+
+     * icon (optional): An icon to display before the text.
+
+     * params (optional): Route parameters (e.g., /user/123).
+
+     * query (optional): Query parameters (e.g., ?q=search).
+
+     * hash (optional): Hash for URL (e.g., #section).
+
+     * <slot> (optional): Default slot for custom content.
+
+4. Usage Examples
+
+   * Example 1: String Path
+
+     <template>
+       <div>
+         <NavButton path="/about" text="Go to About" />
+       </div>
+     </template>
+     <script setup>
+     import NavButton from '@/components/NavButton.vue';
+     </script>
+
+     * Navigates to the "/about" path.  The button text is "Go to About".
+
+   * Example 2: String Path with Icon
+
+     <template>
+       <div>
+         <NavButton path="/">
+           <svg
+             xmlns="http://www.w3.org/2000/svg"
+             width="24"
+             height="24"
+             viewBox="0 0 24 24"
+             fill="none"
+             stroke="currentColor"
+             stroke-width="2"
+             stroke-linecap="round"
+             stroke-linejoin="round"
+             class="lucide lucide-arrow-left"
+           >
+             <path d="M12 19l-7-7 7-7" />
+             <path d="M19 12H5" />
+           </svg>
+           Home
+         </NavButton>
+       </div>
+     </template>
+     <script setup>
+     import NavButton from '@/components/NavButton.vue';
+     </script>
+
+     * Navigates to the root path ("/").  The button contains an SVG icon and the text "Home".
+
+   * Example 3: Route Object with Params
+
+     <template>
+       <div>
+         <NavButton
+           :path="{ name: 'User', params: { id: 123 }, query: { showProfile: true } }"
+           text="View Profile"
+         />
+       </div>
+     </template>
+     <script setup>
+     import NavButton from '@/components/NavButton.vue';
+     </script>
+
+     * Navigates to the route named "User" with the parameter id: 123 and the query parameter showProfile: true.  The resulting URL would be something like "/user/123?showProfile=true".
+
+    * Example 4: Using router.back()
+     <template>
+       <div>
+         <NavButton path="-" text="Go Back"/>
+       </div>
+     </template>
+     <script setup>
+     import NavButton from '@/components/NavButton.vue';
+     </script>
+
+     * Navigates to the previous route in the user's history.
+
+   * Example 5: Route Object with Hash
+
+        <template>
+          <div>
+            <NavButton
+              :path="{ name: 'Docs', hash: '#api-section' }"
+              text="API Section"
+            />
+          </div>
+        </template>
+        <script setup>
+        import NavButton from '@/components/NavButton.vue';
+        </script>
+        * Navigates to the route named "Docs" and adds "#api-section" to the URL, which will scroll the user to that section of the page (if the page has an element with that ID).
+
