@@ -30,7 +30,6 @@ exports.createJob = onCall(async (request) => {
     // Create a new job document
     const jobRef = admin.firestore().collection("jobs").doc();
     const createdAt = admin.firestore.Timestamp.now();
-
     const jobData = {
       jobTitle: data.jobTitle,
       applicationDeadline: data.applicationDeadline || "",
