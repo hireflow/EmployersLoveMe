@@ -165,48 +165,70 @@ const closeEditModal = () => {
   showEditModal.value = false;
 };
 
-const updateJob = async () => {
+const updateJob = async (updatedJobData) => {
   try {
-    if (!selectedJob.value || !selectedJob.value.id) return;
+    console.log("updateJob function called with data:", updatedJobData);
+
+    if (!updatedJobData || !updatedJobData.id) {
+      console.log("Missing job data or ID");
+      return;
+    }
 
     errorMessage.value = "";
     successMessage.value = "";
 
-    // Ensure educationRequirements is mapped to requiredEducation if necessary
+    // Log the received job data
+    console.log(
+      "Received job data for update:",
+      JSON.stringify(updatedJobData, null, 2)
+    );
+
+    // Use the updatedJobData parameter instead of selectedJob.value
     const education =
-      selectedJob.value.educationRequirements ||
-      selectedJob.value.requiredEducation ||
+      updatedJobData.educationRequirements ||
+      updatedJobData.requiredEducation ||
       "";
 
     const payload = {
-      jobId: selectedJob.value.id,
+      jobId: updatedJobData.id,
       updatedJobData: {
-        jobTitle: selectedJob.value.jobTitle,
-        jobDepartment: selectedJob.value.jobDepartment,
-        jobDescription: selectedJob.value.jobDescription,
-        jobLocation: selectedJob.value.jobLocation,
-        jobSalary: selectedJob.value.jobSalary,
-        applicationDeadline: selectedJob.value.applicationDeadline, // Send as is, backend might expect string
-        requiredSkills: selectedJob.value.requiredSkills,
-        preferredSkills: selectedJob.value.preferredSkills,
-        requiredCertifications: selectedJob.value.requiredCertifications,
-        requiredEducation: education, // Use the mapped value
-        interviewStages: selectedJob.value.interviewStages,
-        travelRequirements: selectedJob.value.travelRequirements,
-        teamSize: selectedJob.value.teamSize,
-        techStack: selectedJob.value.techStack,
-        candidateResourceLinks: selectedJob.value.candidateResourceLinks,
-        // Do not send orgId, id, createdAt, applications, status unless specifically updatable
+        jobTitle: updatedJobData.jobTitle,
+        jobDepartment: updatedJobData.jobDepartment,
+        jobDescription: updatedJobData.jobDescription,
+        jobLocation: updatedJobData.jobLocation,
+        jobSalary: updatedJobData.jobSalary,
+        applicationDeadline: updatedJobData.applicationDeadline,
+        requiredSkills: updatedJobData.requiredSkills,
+        preferredSkills: updatedJobData.preferredSkills,
+        requiredCertifications: updatedJobData.requiredCertifications,
+        requiredEducation: education,
+        interviewStages: updatedJobData.interviewStages,
+        travelRequirements: updatedJobData.travelRequirements,
+        teamSize: updatedJobData.teamSize,
+        techStack: updatedJobData.techStack,
+        candidateResourceLinks: updatedJobData.candidateResourceLinks,
+        jobType: updatedJobData.jobType,
       },
     };
+
+    // Detailed logging for debugging
+    console.log("Job ID being updated:", payload.jobId);
+    console.log(
+      "Updated job data (full):",
+      JSON.stringify(payload.updatedJobData, null, 2)
+    );
     console.log("Payload for updateJobById:", payload);
+
     const result = await updateJobByIdCallable(payload);
+    console.log("Update job result:", result);
 
     if (result.data.success) {
+      console.log("Job update successful");
       await fetchJobs(); // Refresh
       successMessage.value = "Job updated successfully!";
       closeEditModal();
     } else {
+      console.error("Update job failed:", result.data.message);
       errorMessage.value =
         result.data.message || "Failed to update job. Please try again.";
     }

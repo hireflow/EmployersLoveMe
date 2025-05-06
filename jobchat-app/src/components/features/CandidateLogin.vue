@@ -7,7 +7,6 @@ const route = useRoute();
 const router = useRouter();
 const candidateAuthStore = useCandidateAuthStore();
 
-
 const email = ref("");
 const isExistingCandidateCheck = ref(false);
 const existingCandidateError = ref("");
@@ -79,7 +78,11 @@ const handleLogin = async () => {
   }
 
   try {
-    await candidateAuthStore.login(email.value, password.value, claimedId.value);
+    await candidateAuthStore.login(
+      email.value,
+      password.value,
+      claimedId.value
+    );
     if (candidateAuthStore.candidate) {
       claimedId.value = null;
       redirectToApplicationDetailsOrDashboard();
@@ -95,10 +98,11 @@ const handleLogin = async () => {
 const redirectToApplicationDetailsOrDashboard = () => {
   const orgId = route.query.orgId;
   const jobId = route.query.jobId;
+
   if (orgId && jobId) {
     router.push({ name: "ApplicationDetails", params: { orgId, jobId } });
   } else {
-    router.push(""); // we can fallback to the applicant dashboard page in the future TO-DO
+    router.push("/candidate-dashboard"); // we can fallback to the applicant dashboard page in the future TO-DO
   }
 };
 </script>
@@ -124,7 +128,10 @@ const redirectToApplicationDetailsOrDashboard = () => {
       <input type="password" v-model="password" placeholder="Password" />
       <input type="text" v-model="name" placeholder="Full Name" />
       <input type="tel" v-model="phone" placeholder="Phone Number" />
-      <button @click="handleRegistration" :disabled="candidateAuthStore.loading">
+      <button
+        @click="handleRegistration"
+        :disabled="candidateAuthStore.loading"
+      >
         {{ candidateAuthStore.loading ? "Registering..." : "Register" }}
       </button>
       <p v-if="registrationError">{{ registrationError }}</p>

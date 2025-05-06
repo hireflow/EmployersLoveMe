@@ -11,6 +11,9 @@ export const useCandidateAuthStore = defineStore("candidate-auth", () => {
   const loading = ref(false);
   const error = ref(null);
 
+
+  // const applications = ... fetch applications for this candidate when candidate is not null
+  // 
   const checkIfCandidateExists = async (emailToCheck) => {
     loading.value = true;
     error.value = null;

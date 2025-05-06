@@ -12,7 +12,6 @@ import { createRouter, createWebHistory } from "vue-router";
 import { useAuthStore } from "@/stores";
 import { useCandidateAuthStore } from "@/stores";
 
-
 // Define application routes
 const routes = [
   {
@@ -39,6 +38,12 @@ const routes = [
     path: "/candidate-login",
     name: "CandidateLogin",
     component: () => import("@/components/features/CandidateLogin.vue"),
+  },
+  {
+    path: "/candidate-dashboard",
+    name: "CandidateDashboard",
+    component: () => import("@/components/features/CandidateDashboard.vue"),
+    meta: { requiresCandidateAuthNoParams: true },
   },
 ];
 
@@ -82,6 +87,13 @@ router.beforeEach(async (to, from, next) => {
     next({
       name: "CandidateLogin",
       query: { orgId: to.params.orgId, jobId: to.params.jobId },
+    });
+  } else if (
+    to.meta.requiresCandidateAuthNoParams &&
+    !candidateAuthStore.candidate
+  ) {
+    next({
+      name: "CandidateLogin",
     });
   }
   // If no special authentication is required, proceed

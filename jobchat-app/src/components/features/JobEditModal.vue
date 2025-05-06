@@ -6,7 +6,7 @@
         <button class="close-button" @click="$emit('close')">×</button>
       </div>
 
-      <form @submit.prevent="$emit('submit', formData)" class="form-grid">
+      <form @submit.prevent="handleSubmit" class="form-grid">
         <div class="form-group">
           <label>Basic Information</label>
           <input
@@ -119,7 +119,7 @@
 </template>
 
 <script setup>
-import { ref, watch, defineProps } from "vue";
+import { ref, watch, defineProps, defineEmits } from "vue";
 
 const props = defineProps({
   show: {
@@ -132,6 +132,7 @@ const props = defineProps({
   },
 });
 
+const emit = defineEmits(["close", "submit"]);
 const formData = ref({ ...props.job });
 
 watch(
@@ -141,6 +142,12 @@ watch(
   },
   { deep: true }
 );
+
+// Add this function to explicitly emit the current formData
+function handleSubmit() {
+  console.log("JobEditModal: Emitting submit with form data:", formData.value);
+  emit("submit", formData.value);
+}
 </script>
 
 <style scoped>
