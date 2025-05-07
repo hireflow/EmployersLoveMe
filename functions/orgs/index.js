@@ -1,6 +1,7 @@
 const { onCall } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const { HttpsError } = require("firebase-functions/v2/https");
+const db = admin.firestore();
 
 exports.createJob = onCall(async (request) => {
   try {
@@ -84,7 +85,6 @@ exports.createJob = onCall(async (request) => {
   }
 });
 
-
 exports.getJobsByOrgId = onCall(async (request) => {
   try {
     const { orgId } = request.data;
@@ -157,7 +157,7 @@ exports.getJobsByOrgId = onCall(async (request) => {
 
 exports.updateJobById = onCall(async (request) => {
   const { jobId, updatedJobData } = request.data;
-  try{
+  try {
     if (!jobId || !updatedJobData)
       throw new HttpsError(
         "invalid-argument",
@@ -170,9 +170,8 @@ exports.updateJobById = onCall(async (request) => {
     return {
       success: true,
       message: "Job updated successfully",
-  };
-  }
-  catch (error) {
+    };
+  } catch (error) {
     console.error("Error updating job:", error);
     if (error instanceof HttpsError) {
       throw error;
@@ -202,17 +201,16 @@ exports.deleteJobById = onCall(async (request) => {
     batch.update(orgRef, {
       jobs: admin.firestore.FieldValue.arrayRemove(jobId),
     });
-    
+
     batch.delete(jobRef);
-    
+
     await batch.commit();
 
     return {
       success: true,
       message: "Job deleted successfully",
     };
-  } 
-  catch (error) {
+  } catch (error) {
     console.error("Error deleting job:", error);
     if (error instanceof HttpsError) {
       throw error;
@@ -223,7 +221,6 @@ exports.deleteJobById = onCall(async (request) => {
       error.message
     );
   }
-
 });
 
 exports.addNewJobIdToOrg = onCall(async (request) => {
@@ -393,8 +390,6 @@ exports.deleteOrg = onCall(async (request) => {
   }
 });
 
-
-
 exports.fetchUserOrgsById = onCall(async (request) => {
   const userId = request.data.userId;
   console.log(userId);
@@ -436,5 +431,64 @@ exports.fetchUserOrgsById = onCall(async (request) => {
   } catch (error) {
     console.error("Error fetching user:", error);
     throw new HttpsError("internal", "Error fetching user");
+  }
+});
+
+exports.getPublicOrgDetails = onCall(async (request) => {
+  const { orgId } = request.data;
+
+  if (!orgId) {
+    console.error("Validation Error: Missing orgId", request.data);
+    throw new HttpsError("invalid-argument", "Missing required field: orgId.");
+  }
+
+  try {
+    const orgRef = db.collection("orgs").doc(orgId);
+    const orgDoc = await orgRef.get();
+
+    if (!orgDoc.exists) {
+      throw new HttpsError(
+        "not-found",
+        `Organization with ID ${orgId} not found.`
+      );
+    }
+
+    const orgData = orgDoc.data() || {}; // Use empty object as fallback if data() is null/undefined
+
+    // Select only the fields safe for public/candidate view, providing defaults
+    const publicOrgData = {
+      id: orgDoc.id,
+      companyName: orgData.companyName || "N/A",
+      companyDescription:
+        orgData.companyDescription || "No description provided.",
+      industry: orgData.industry || "N/A",
+      location: orgData.location || "N/A",
+      logoUrl: orgData.logoUrl || "", // Default to empty string if no logo
+      missionStatement:
+        orgData.missionStatement || "No mission statement provided.",
+      // Avoid sending sensitive data like paymentPlanStatus, stripeCustomerId, etc.
+    };
+
+    return {
+      success: true,
+      organization: publicOrgData,
+    };
+  } catch (error) {
+    // Log the detailed error in Firebase Functions logs
+    console.error(
+      `Error fetching public org details for org ${orgId}. Raw error:`,
+      error
+    );
+
+    // If it's already an HttpsError, re-throw it
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    // For other errors, throw a generic HttpsError but include original message for server logs
+    throw new HttpsError(
+      "internal",
+      `An unexpected error occurred while fetching organization details for orgId: ${orgId}. Check server logs.`, // More specific message for client
+      error.message // Original error message for server-side logging context
+    );
   }
 });

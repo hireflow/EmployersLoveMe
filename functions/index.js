@@ -6,12 +6,23 @@ const { onRequest } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 
 // Initialize Firebase Admin SDK only once
-admin.initializeApp();
+if (admin.apps.length === 0) {
+  // Check if already initialized
+  admin.initializeApp();
+}
 
 // Import auth functions
 const authFunctions = require("./auth");
 const orgFunctions = require("./orgs");
 const candidateFunctions = require("./candidates");
+const applicationFunctions = require("./applications");
+const jobFunctions = require("./jobs");
+
+// job functions
+exports.getPublicJobDetails = jobFunctions.getPublicJobDetails;
+
+// application functions
+exports.createApplication = applicationFunctions.createApplication;
 
 // Export auth functions
 exports.registerUser = authFunctions.registerUser;
@@ -27,8 +38,11 @@ exports.addNewJobIdToOrg = orgFunctions.addNewJobIdToOrg;
 exports.fetchUserOrgsById = orgFunctions.fetchUserOrgsById;
 exports.deleteJobById = orgFunctions.deleteJobById;
 exports.deleteOrg = orgFunctions.deleteOrg;
+exports.getPublicOrgDetails = orgFunctions.getPublicOrgDetails;
 
-exports.checkCandidateEmailExists = candidateFunctions.checkCandidateEmailExists;
+// candidate functions
+exports.checkCandidateEmailExists =
+  candidateFunctions.checkCandidateEmailExists;
 exports.signInCandidate = candidateFunctions.signInCandidate;
 exports.registerCandidate = candidateFunctions.registerCandidate;
 
