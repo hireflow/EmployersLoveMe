@@ -6,7 +6,7 @@
         <button class="close-button" @click="$emit('close')">×</button>
       </div>
 
-      <form @submit.prevent="$emit('submit', formData)" class="form-grid">
+      <form @submit.prevent="handleSubmit" class="form-grid">
         <div class="form-group">
           <label>Basic Information</label>
           <input
@@ -44,20 +44,14 @@
           />
           <input
             type="text"
-            v-model="formData.salaryRange"
+            v-model="formData.jobSalary"
             placeholder="Salary Range"
             required
           />
           <input
             type="text"
-            v-model="formData.employmentType"
+            v-model="formData.jobType"
             placeholder="Employment Type (e.g., Full-time, Part-time)"
-            required
-          />
-          <input
-            type="text"
-            v-model="formData.expectedJobDuration"
-            placeholder="Expected Job Duration"
             required
           />
           <input
@@ -66,15 +60,14 @@
             placeholder="Application Deadline"
             required
           />
+          <textarea
+            v-model="formData.travelRequirements"
+            placeholder="Travel Requirements"
+          ></textarea>
         </div>
 
         <div class="form-group">
           <label>Requirements & Skills</label>
-          <textarea
-            v-model="formData.responsibilities"
-            placeholder="Job Responsibilities"
-            required
-          ></textarea>
           <textarea
             v-model="formData.requiredSkills"
             placeholder="Required Skills"
@@ -86,13 +79,7 @@
           ></textarea>
           <input
             type="text"
-            v-model="formData.minExperience"
-            placeholder="Minimum Experience"
-            required
-          />
-          <input
-            type="text"
-            v-model="formData.educationRequirements"
+            v-model="formData.requiredEducation"
             placeholder="Education Requirements"
             required
           />
@@ -108,54 +95,11 @@
         </div>
 
         <div class="form-group">
-          <label>Work Environment & Culture</label>
-          <textarea
-            v-model="formData.workEnvironment"
-            placeholder="Work Environment Description"
-          ></textarea>
-          <textarea
-            v-model="formData.teamDynamics"
-            placeholder="Team Dynamics"
-          ></textarea>
-          <textarea
-            v-model="formData.growthOpportunities"
-            placeholder="Growth & Development Opportunities"
-            required
-          ></textarea>
-          <textarea
-            v-model="formData.diversityInitiatives"
-            placeholder="Diversity & Inclusion Initiatives"
-          ></textarea>
-        </div>
-
-        <div class="form-group">
-          <label>Benefits & Policies</label>
-          <textarea
-            v-model="formData.benefitsPackage"
-            placeholder="Benefits Package Details"
-            required
-          ></textarea>
-          <textarea
-            v-model="formData.remoteWorkPolicy"
-            placeholder="Remote Work Policy"
-            required
-          ></textarea>
-          <textarea
-            v-model="formData.travelRequirements"
-            placeholder="Travel Requirements"
-          ></textarea>
-        </div>
-
-        <div class="form-group">
           <label>Process & Resources</label>
           <textarea
             v-model="formData.interviewStages"
             placeholder="Interview Process Stages"
             required
-          ></textarea>
-          <textarea
-            v-model="formData.onboardingProcess"
-            placeholder="Onboarding Process"
           ></textarea>
           <textarea
             v-model="formData.candidateResourceLinks"
@@ -175,7 +119,7 @@
 </template>
 
 <script setup>
-import { ref, watch, defineProps } from "vue";
+import { ref, watch, defineProps, defineEmits } from "vue";
 
 const props = defineProps({
   show: {
@@ -188,6 +132,7 @@ const props = defineProps({
   },
 });
 
+const emit = defineEmits(["close", "submit"]);
 const formData = ref({ ...props.job });
 
 watch(
@@ -197,6 +142,12 @@ watch(
   },
   { deep: true }
 );
+
+// Add this function to explicitly emit the current formData
+function handleSubmit() {
+  console.log("JobEditModal: Emitting submit with form data:", formData.value);
+  emit("submit", formData.value);
+}
 </script>
 
 <style scoped>

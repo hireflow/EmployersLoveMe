@@ -93,17 +93,14 @@ export const useAuthStore = defineStore("auth", () => {
         selectedOrg.value = null;
         return;
       }
-
       // If we already have orgs and no force refresh, skip
       if (orgs.value.length > 0 && !forceRefresh) {
         return;
       }
-
-      const fetchUserOrgs = httpsCallable(functions, "fetchUserOrgsByEmail");
-      const result = await fetchUserOrgs({
-        userEmail: user.value.email,
+      const fetchUserOrganizations = httpsCallable(functions, "fetchUserOrgsById");
+      const result = await fetchUserOrganizations({
+        userId: user.value.uid,
       });
-
       // Ensure orgs is always an array
       orgs.value = result.data.success ? result.data.orgs : [];
 

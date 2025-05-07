@@ -10,6 +10,7 @@
 import { createRouter, createWebHistory } from "vue-router";
 // import { auth } from '../firebase' TO-DO: later
 import { useAuthStore } from "@/stores";
+import { useCandidateAuthStore } from "@/stores";
 
 // Define application routes
 const routes = [
@@ -25,6 +26,24 @@ const routes = [
   {
     path: "/login",
     component: () => import("@/components/features/SignupOrLoginUser.vue"),
+  },
+  {
+    path: "/applications/:orgId/:jobId",
+    name: "ApplicationDetails",
+    component: () => import("@/components/features/ApplicationDetails.vue"),
+    props: true,
+    meta: { requiresCandidateAuth: true },
+  },
+  {
+    path: "/candidate-login",
+    name: "CandidateLogin",
+    component: () => import("@/components/features/CandidateLogin.vue"),
+  },
+  {
+    path: "/candidate-dashboard",
+    name: "CandidateDashboard",
+    component: () => import("@/components/features/CandidateDashboard.vue"),
+    meta: { requiresCandidateAuthNoParams: true },
   },
 ];
 
@@ -44,6 +63,7 @@ const router = createRouter({
  */
 router.beforeEach(async (to, from, next) => {
   const authStore = useAuthStore();
+  const candidateAuthStore = useCandidateAuthStore();
 
   // Wait for auth state to be initialized
   if (authStore.loading) {
@@ -58,10 +78,26 @@ router.beforeEach(async (to, from, next) => {
     });
   }
 
-  // Check if route requires authentication
+  // Check for regular user authentication
   if (to.meta.requiresAuth && !authStore.user) {
     next("/login");
-  } else {
+  }
+  // Check for candidate authentication
+  else if (to.meta.requiresCandidateAuth && !candidateAuthStore.candidate) {
+    next({
+      name: "CandidateLogin",
+      query: { orgId: to.params.orgId, jobId: to.params.jobId },
+    });
+  } else if (
+    to.meta.requiresCandidateAuthNoParams &&
+    !candidateAuthStore.candidate
+  ) {
+    next({
+      name: "CandidateLogin",
+    });
+  }
+  // If no special authentication is required, proceed
+  else {
     next();
   }
 });

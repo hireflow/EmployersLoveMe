@@ -1,0 +1,149 @@
+
+users
+{
+    userID: {
+        createdAt:
+        displayName:
+        email:
+        organizations: array []
+        role: 
+    }
+}
+
+jobs
+{
+    jobID:{
+        "jobTitle":
+        "applicationDeadline": "2025-04-29T14:00:00Z",
+        "applications": array or subcollection?,
+        "hiringManagerId": array []
+        "orgId":
+        "status":
+        "createdAt": "2025-04-29T12:00:00Z",
+        "requiredEducation": array []
+        "requiredCertifications": array []
+        "requiredSkills": array []
+        "preferredSkills": array [],
+        "requiredQuestions": array []
+        "candidateResourceLinks": [] array,
+        "jobType":
+        "interviewStages":
+        "jobDepartment":
+        "jobDescription":
+        "jobLocation":
+        "teamSize":
+        "techStack": array []
+        "travelRequirements"
+        "salaryRange"
+    }
+}
+
+org
+{
+    orgID:{
+        companyDescription:
+        companyName:
+        companySize:
+        createdAt:
+        hiringManagers: array [userId]
+        industry:
+        location:
+        logoUrl:
+        missionStatement: 
+        jobs: array [jobId1]
+        paymentPlanCanceledDate:
+        paymentPlanCanceledReason:
+        paymentPlanEndDate:
+        paymentPlanStartDate:
+        paymentPlanStatus:
+        paymentPlanTier:
+        stripeCustomerId:
+        stripeSubscriptionId:
+    }
+}
+
+candidates
+{	
+    candidateID: {
+        "name": "Jane Doe",
+        "email": "janedoe@example.com",
+        "phone": "555-123-4567",
+        "resumeUrl": "https://example.com/resume/jane.pdf",
+        "resumeBreakdown": {}
+        “applications”: [applicationID, applicationID]
+        "createdAt": "2025-04-29T12:00:00Z",
+        "updatedAt": "2025-04-29T12:00:00Z"
+	}	
+}
+	
+applications
+{
+    applicationID: {
+        "candidateId": "candidateId123",
+        "jobID": 
+        "applicationDate": "2025-04-29T14:00:00Z",
+        "status": "completed",
+        "messages": [
+            { "role": "system", "content": "Welcome to the interview!" },
+            { "role": "user", "content": "Hi, I'm ready." },
+            { "role": "assistant", "content": "Great! Let's get started..." },
+        ],
+        "reportID": reportID
+        "completedAt": "2025-04-29T15:00:00Z"
+    }
+}
+
+reports
+{   
+    reportID: {
+        "candidateId": candidateID,
+        "applicationId": interviewID,
+        "jobID":
+        "questionResponses": [{"question": "why?", "response": "because."}]
+        "summary": "Jane showed solid understanding of algorithms and was confident in her problem-solving.",
+        "score": 8.7,
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+// Job form fields
+// const jobTitle = ref("");
+// const jobDepartment = ref("");
+// const jobDescription = ref("");
+// const jobLocation = ref("");
+// const jobSalary = ref("");
+// const employmentType = ref("");
+// const expectedJobDuration = ref("");
+// const applicationDeadline = ref("");
+// const salaryRange = ref("");
+// const responsibilities = ref("");
+// const requiredSkills = ref("");
+// const preferredSkills = ref("");
+// const minExperience = ref("");
+// const requiredCertifications = ref("");
+// const educationRequirements = ref("");
+// const workEnvironment = ref("");
+// const teamDynamics = ref("");
+// const growthOpportunities = ref("");
+// const interviewStages = ref("");
+// const diversityInitiatives = ref("");
+// const benefitsPackage = ref("");
+// const remoteWorkPolicy = ref("");
+// const travelRequirements = ref("");
+// const onboardingProcess = ref("");
+// const teamSize = ref("");
+// const techStack = ref("");
+// const candidateResourceLinks = ref("");

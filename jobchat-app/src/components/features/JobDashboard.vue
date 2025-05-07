@@ -1,16 +1,16 @@
-
 <script setup>
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { watch, onMounted } from "vue";
+import { watch, onMounted, ref, defineAsyncComponent } from "vue";
 import { useAuthStore } from "@/stores/auth";
-import { ref } from "vue";
-import { defineAsyncComponent } from "vue";
 import LoadingSpinner from "@/components/ui/LoadingSpinner.vue";
 import ErrorBoundary from "@/components/ui/ErrorBoundary.vue";
 
 const authStore = useAuthStore();
 const functions = getFunctions();
+
 const getJobsByOrgId = httpsCallable(functions, "getJobsByOrgId");
+const createJobCallable = httpsCallable(functions, "createJob"); // Renamed for clarity
+const updateJobByIdCallable = httpsCallable(functions, "updateJobById"); // Renamed for clarity
 
 const jobs = ref([]);
 const showJobForm = ref(false);
@@ -20,166 +20,143 @@ const selectedJob = ref(null);
 const errorMessage = ref("");
 const successMessage = ref("");
 
-// Job form fields
-const jobTitle = ref("");
-const jobDepartment = ref("");
-const jobDescription = ref("");
-const jobLocation = ref("");
-const jobSalary = ref("");
-const employmentType = ref("");
-const expectedJobDuration = ref("");
-const applicationDeadline = ref("");
-const salaryRange = ref("");
-const responsibilities = ref("");
-const requiredSkills = ref("");
-const preferredSkills = ref("");
-const minExperience = ref("");
-const requiredCertifications = ref("");
-const educationRequirements = ref("");
-const workEnvironment = ref("");
-const teamDynamics = ref("");
-const growthOpportunities = ref("");
-const interviewStages = ref("");
-const diversityInitiatives = ref("");
-const benefitsPackage = ref("");
-const remoteWorkPolicy = ref("");
-const travelRequirements = ref("");
-const onboardingProcess = ref("");
-const teamSize = ref("");
-const techStack = ref("");
-const candidateResourceLinks = ref("");
+const formatTimestamp = (timestampInput) => {
+  if (!timestampInput) return "N/A";
+
+  let date;
+  if (
+    timestampInput._seconds !== undefined &&
+    timestampInput._nanoseconds !== undefined
+  ) {
+    // Firestore Timestamp object
+    date = new Date(
+      timestampInput._seconds * 1000 + timestampInput._nanoseconds / 1000000
+    );
+  } else if (
+    typeof timestampInput === "string" &&
+    timestampInput.match(/^\d{4}-\d{2}-\d{2}/)
+  ) {
+    // Date string in YYYY-MM-DD format (or YYYY-MM-DDTHH:mm:ss...)
+    // Add time part if only date is given to avoid UTC interpretation issues for some browsers
+    const parts = timestampInput.substring(0, 10).split("-");
+    date = new Date(Date.UTC(parts[0], parts[1] - 1, parts[2])); // Parse as UTC then format in local
+  } else if (timestampInput instanceof Date) {
+    // Already a Date object
+    date = timestampInput;
+  } else {
+    return String(timestampInput); // Fallback for unknown formats, e.g. already formatted string
+  }
+
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    timeZone: "UTC", // Specify timezone if parsed as UTC to display correctly
+  });
+};
 
 const fetchJobs = async () => {
   try {
-    if (!authStore.selectedOrg?.id) return;
+    if (!authStore.selectedOrg?.id) {
+      jobs.value = []; // Clear jobs if no org is selected
+      return;
+    }
 
     console.log("Fetching jobs for org:", authStore.selectedOrg.id);
+    errorMessage.value = ""; // Clear previous errors
     const result = await getJobsByOrgId({
       orgId: authStore.selectedOrg.id,
     });
-    console.log("Raw result:", result);
+    console.log("Raw result from getJobsByOrgId:", result);
 
     if (result.data.success) {
       jobs.value = result.data.data || [];
+      console.log(
+        "Fetched and processed jobs:",
+        JSON.stringify(jobs.value, null, 2)
+      );
     } else {
       jobs.value = [];
+      errorMessage.value =
+        result.data.message ||
+        "Failed to fetch jobs (server indicated no success).";
     }
-    console.log("Processed jobs:", jobs.value);
   } catch (error) {
     console.error("Error fetching jobs:", error);
-    errorMessage.value = "Failed to fetch jobs. Please try again.";
+    errorMessage.value =
+      error.message || "Failed to fetch jobs. Please try again.";
     jobs.value = [];
   }
 };
 
-// Watch for changes in selectedOrg
 watch(
   () => authStore.selectedOrg?.id,
   (newId) => {
     if (newId) {
+      console.log("Selected org changed to:", newId, "Fetching jobs.");
       fetchJobs();
     } else {
+      console.log("Selected org cleared. Clearing jobs.");
       jobs.value = [];
     }
   },
   { immediate: true }
 );
 
-// Also fetch on component mount if we have a selected org
 onMounted(() => {
-  if (authStore.selectedOrg?.id) {
+  if (authStore.selectedOrg?.id && jobs.value.length === 0) {
+    // Fetch only if org selected and jobs not already loaded
+    console.log("Component mounted with selected org. Fetching jobs.");
     fetchJobs();
   }
 });
 
-const createJob = httpsCallable(functions, "createJob");
-const updateJobById = httpsCallable(functions, "updateJobById");
-const createNewJob = async () => {
+const createNewJob = async (formData) => {
+  console.log("Form data for new job:", formData);
   try {
     errorMessage.value = "";
     successMessage.value = "";
 
-    const result = await createJob({
+    if (!formData.jobTitle) {
+      // Basic validation
+      errorMessage.value = "Job title is required.";
+      return;
+    }
+
+    const payload = {
       orgId: authStore.selectedOrg.id,
-      hiringManagerId: authStore.user.uid,
-      jobTitle: jobTitle.value,
-      jobDepartment: jobDepartment.value,
-      jobDescription: jobDescription.value,
-      jobLocation: jobLocation.value,
-      jobSalary: jobSalary.value,
-      employmentType: employmentType.value,
-      expectedJobDuration: expectedJobDuration.value,
-      applicationDeadline: applicationDeadline.value,
-      salaryRange: salaryRange.value,
-      responsibilities: responsibilities.value,
-      requiredSkills: requiredSkills.value,
-      preferredSkills: preferredSkills.value,
-      minExperience: minExperience.value,
-      requiredCertifications: requiredCertifications.value,
-      educationRequirements: educationRequirements.value,
-      workEnvironment: workEnvironment.value,
-      teamDynamics: teamDynamics.value,
-      growthOpportunities: growthOpportunities.value,
-      interviewStages: interviewStages.value,
-      diversityInitiatives: diversityInitiatives.value,
-      benefitsPackage: benefitsPackage.value,
-      remoteWorkPolicy: remoteWorkPolicy.value,
-      travelRequirements: travelRequirements.value,
-      onboardingProcess: onboardingProcess.value,
-      teamSize: teamSize.value,
-      techStack: techStack.value,
-      candidateResourceLinks: candidateResourceLinks.value,
-    });
+      hiringManagerIds: [authStore.user.uid], // Ensure authStore.user.uid is available
+      ...formData,
+    };
+    console.log("Payload for createJob:", payload);
+    const result = await createJobCallable(payload);
 
     if (result.data.success) {
-      await fetchJobs();
+      await fetchJobs(); // Refresh the jobs list
       successMessage.value = "Job created successfully!";
       showJobForm.value = false;
-      // Reset all form fields
-      jobTitle.value = "";
-      jobDepartment.value = "";
-      jobDescription.value = "";
-      jobLocation.value = "";
-      jobSalary.value = "";
-      employmentType.value = "";
-      expectedJobDuration.value = "";
-      applicationDeadline.value = "";
-      salaryRange.value = "";
-      responsibilities.value = "";
-      requiredSkills.value = "";
-      preferredSkills.value = "";
-      minExperience.value = "";
-      requiredCertifications.value = "";
-      educationRequirements.value = "";
-      workEnvironment.value = "";
-      teamDynamics.value = "";
-      growthOpportunities.value = "";
-      interviewStages.value = "";
-      diversityInitiatives.value = "";
-      benefitsPackage.value = "";
-      remoteWorkPolicy.value = "";
-      travelRequirements.value = "";
-      onboardingProcess.value = "";
-      teamSize.value = "";
-      techStack.value = "";
-      candidateResourceLinks.value = "";
     } else {
-      errorMessage.value = "Failed to create job. Please try again.";
+      errorMessage.value =
+        result.data.message || "Failed to create job. Please try again.";
     }
   } catch (error) {
     console.error("Error creating job:", error);
-    errorMessage.value = "Failed to create job. Please try again.";
+    errorMessage.value =
+      error.message || "An error occurred while creating the job.";
   }
 };
 
 const toggleJobForm = () => {
   showJobForm.value = !showJobForm.value;
-  errorMessage.value = "";
-  successMessage.value = "";
+  if (!showJobForm.value) {
+    // Clear messages when closing form
+    errorMessage.value = "";
+    successMessage.value = "";
+  }
 };
 
 const openEditModal = (job) => {
-  selectedJob.value = { ...job };
+  selectedJob.value = { ...job }; // Clone job to avoid modifying the list directly
   showEditModal.value = true;
 };
 
@@ -188,54 +165,77 @@ const closeEditModal = () => {
   showEditModal.value = false;
 };
 
-const updateJob = async () => {
+const updateJob = async (updatedJobData) => {
   try {
+    console.log("updateJob function called with data:", updatedJobData);
+
+    if (!updatedJobData || !updatedJobData.id) {
+      console.log("Missing job data or ID");
+      return;
+    }
+
     errorMessage.value = "";
     successMessage.value = "";
 
-    const result = await updateJobById({
-      jobId: selectedJob.value.id,
+    // Log the received job data
+    console.log(
+      "Received job data for update:",
+      JSON.stringify(updatedJobData, null, 2)
+    );
+
+    // Use the updatedJobData parameter instead of selectedJob.value
+    const education =
+      updatedJobData.educationRequirements ||
+      updatedJobData.requiredEducation ||
+      "";
+
+    const payload = {
+      jobId: updatedJobData.id,
       updatedJobData: {
-        jobTitle: selectedJob.value.jobTitle,
-        jobDepartment: selectedJob.value.jobDepartment,
-        jobDescription: selectedJob.value.jobDescription,
-        jobLocation: selectedJob.value.jobLocation,
-        jobSalary: selectedJob.value.jobSalary,
-        employmentType: selectedJob.value.employmentType,
-        expectedJobDuration: selectedJob.value.expectedJobDuration,
-        applicationDeadline: selectedJob.value.applicationDeadline,
-        salaryRange: selectedJob.value.salaryRange,
-        responsibilities: selectedJob.value.responsibilities,
-        requiredSkills: selectedJob.value.requiredSkills,
-        preferredSkills: selectedJob.value.preferredSkills,
-        minExperience: selectedJob.value.minExperience,
-        requiredCertifications: selectedJob.value.requiredCertifications,
-        educationRequirements: selectedJob.value.educationRequirements,
-        workEnvironment: selectedJob.value.workEnvironment,
-        teamDynamics: selectedJob.value.teamDynamics,
-        growthOpportunities: selectedJob.value.growthOpportunities,
-        interviewStages: selectedJob.value.interviewStages,
-        diversityInitiatives: selectedJob.value.diversityInitiatives,
-        benefitsPackage: selectedJob.value.benefitsPackage,
-        remoteWorkPolicy: selectedJob.value.remoteWorkPolicy,
-        travelRequirements: selectedJob.value.travelRequirements,
-        onboardingProcess: selectedJob.value.onboardingProcess,
-        teamSize: selectedJob.value.teamSize,
-        techStack: selectedJob.value.techStack,
-        candidateResourceLinks: selectedJob.value.candidateResourceLinks,
+        jobTitle: updatedJobData.jobTitle,
+        jobDepartment: updatedJobData.jobDepartment,
+        jobDescription: updatedJobData.jobDescription,
+        jobLocation: updatedJobData.jobLocation,
+        jobSalary: updatedJobData.jobSalary,
+        applicationDeadline: updatedJobData.applicationDeadline,
+        requiredSkills: updatedJobData.requiredSkills,
+        preferredSkills: updatedJobData.preferredSkills,
+        requiredCertifications: updatedJobData.requiredCertifications,
+        requiredEducation: education,
+        interviewStages: updatedJobData.interviewStages,
+        travelRequirements: updatedJobData.travelRequirements,
+        teamSize: updatedJobData.teamSize,
+        techStack: updatedJobData.techStack,
+        candidateResourceLinks: updatedJobData.candidateResourceLinks,
+        jobType: updatedJobData.jobType,
       },
-    });
+    };
+
+    // Detailed logging for debugging
+    console.log("Job ID being updated:", payload.jobId);
+    console.log(
+      "Updated job data (full):",
+      JSON.stringify(payload.updatedJobData, null, 2)
+    );
+    console.log("Payload for updateJobById:", payload);
+
+    const result = await updateJobByIdCallable(payload);
+    console.log("Update job result:", result);
 
     if (result.data.success) {
-      await fetchJobs();
+      console.log("Job update successful");
+      await fetchJobs(); // Refresh
       successMessage.value = "Job updated successfully!";
       closeEditModal();
     } else {
-      errorMessage.value = "Failed to update job. Please try again.";
+      console.error("Update job failed:", result.data.message);
+      errorMessage.value =
+        result.data.message || "Failed to update job. Please try again.";
     }
   } catch (error) {
     console.error("Error updating job:", error);
-    errorMessage.value = "Failed to update job. Please try again.";
+    errorMessage.value =
+      error.message || "An error occurred while updating the job.";
   }
 };
 
@@ -251,32 +251,40 @@ const closeChatbotModal = () => {
 
 const updateChatbotSettings = async (settings) => {
   try {
+    if (!selectedJob.value || !selectedJob.value.id) return;
+
     errorMessage.value = "";
     successMessage.value = "";
 
-    const result = await updateJobById({
+    const payload = {
       jobId: selectedJob.value.id,
       updatedJobData: {
-        ...selectedJob.value,
+        // Only send chatbotSettings or relevant fields to avoid overwriting others unintentionally
         chatbotSettings: settings,
       },
-    });
+    };
+    console.log(
+      "Payload for updateChatbotSettings (via updateJobById):",
+      payload
+    );
+    const result = await updateJobByIdCallable(payload);
 
     if (result.data.success) {
-      await fetchJobs();
+      await fetchJobs(); // Refresh
       successMessage.value = "Chatbot settings updated successfully!";
       closeChatbotModal();
     } else {
       errorMessage.value =
+        result.data.message ||
         "Failed to update chatbot settings. Please try again.";
     }
   } catch (error) {
     console.error("Error updating chatbot settings:", error);
-    errorMessage.value = "Failed to update chatbot settings. Please try again.";
+    errorMessage.value =
+      error.message || "An error occurred while updating chatbot settings.";
   }
 };
 
-// Lazy load the modals
 const JobForm = defineAsyncComponent(() =>
   import("@/components/features/JobForm.vue")
 );
@@ -291,8 +299,12 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
 <template>
   <div class="job-dashboard">
     <div class="dashboard-header">
-      <h1>Jobs for {{ authStore.selectedOrg?.name }}</h1>
-      <button @click="toggleJobForm" class="create-button">
+      <h1>Jobs for {{ authStore.selectedOrg?.name || "your organization" }}</h1>
+      <button
+        @click="toggleJobForm"
+        class="create-button"
+        :disabled="!authStore.selectedOrg?.id"
+      >
         {{ showJobForm ? "Cancel" : "Create New Job" }}
       </button>
     </div>
@@ -325,32 +337,125 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
       <div v-if="!showJobForm" class="jobs-section">
         <div class="section-header">
           <h2>Current Jobs</h2>
-          <p v-if="jobs.length === 0" class="no-jobs-message">
+          <p v-if="!authStore.selectedOrg?.id" class="no-jobs-message">
+            Please select an organization to see jobs.
+          </p>
+          <p
+            v-else-if="jobs.length === 0 && !errorMessage"
+            class="no-jobs-message"
+          >
             No jobs found for this organization.
           </p>
         </div>
 
-        <div class="jobs-grid">
+        <div
+          class="jobs-grid"
+          v-if="authStore.selectedOrg?.id && jobs.length > 0"
+        >
           <div v-for="job in jobs" :key="job.id" class="job-card">
             <div class="job-card-header">
-              <h3>{{ job.jobTitle }}</h3>
-              <span class="job-department">{{ job.jobDepartment }}</span>
+              <h3>{{ job.jobTitle || "N/A" }}</h3>
+              <span class="job-department">{{
+                job.jobDepartment || "N/A"
+              }}</span>
             </div>
 
             <div class="job-card-content">
               <div class="job-info">
                 <div class="info-item">
                   <span class="label">Location:</span>
-                  <span class="value">{{ job.jobLocation }}</span>
+                  <span class="value">{{ job.jobLocation || "N/A" }}</span>
                 </div>
                 <div class="info-item">
                   <span class="label">Team Size:</span>
-                  <span class="value">{{ job.teamSize }}</span>
+                  <span class="value">{{ job.teamSize || "N/A" }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">Status:</span>
+                  <span class="value">{{ job.status || "N/A" }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">Deadline:</span>
+                  <span class="value">{{
+                    formatTimestamp(job.applicationDeadline)
+                  }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">Job Type:</span>
+                  <span class="value">{{ job.jobType || "N/A" }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">Salary:</span>
+                  <span class="value">{{ job.jobSalary || "N/A" }}</span>
+                </div>
+                <div class="info-item">
+                  <span class="label">Interview Stages:</span>
+                  <span class="value">{{ job.interviewStages || "N/A" }}</span>
                 </div>
               </div>
 
-              <div class="job-description">
-                <p>{{ job.jobDescription }}</p>
+              <div class="job-details-section">
+                <h4>Details:</h4>
+                <div class="detail-item">
+                  <span class="label">Required Skills:</span>
+                  <p class="value-paragraph">
+                    {{ job.requiredSkills || "N/A" }}
+                  </p>
+                </div>
+                <div class="detail-item">
+                  <span class="label">Preferred Skills:</span>
+                  <p class="value-paragraph">
+                    {{ job.preferredSkills || "N/A" }}
+                  </p>
+                </div>
+                <div class="detail-item">
+                  <span class="label">Required Education:</span>
+                  <p class="value-paragraph">
+                    {{ job.requiredEducation || "N/A" }}
+                  </p>
+                </div>
+                <div class="detail-item">
+                  <span class="label">Required Certifications:</span>
+                  <p class="value-paragraph">
+                    {{ job.requiredCertifications || "N/A" }}
+                  </p>
+                </div>
+                <div class="detail-item">
+                  <span class="label">Tech Stack:</span>
+                  <p class="value-paragraph">{{ job.techStack || "N/A" }}</p>
+                </div>
+                <div class="detail-item">
+                  <span class="label">Travel Requirements:</span>
+                  <p class="value-paragraph">
+                    {{ job.travelRequirements || "N/A" }}
+                  </p>
+                </div>
+                <div class="detail-item" v-if="job.candidateResourceLinks">
+                  <span class="label">Candidate Resources:</span>
+                  <p class="value-paragraph">
+                    {{ job.candidateResourceLinks }}
+                  </p>
+                </div>
+              </div>
+
+              <div class="job-description-section">
+                <h4>Job Description:</h4>
+                <p>{{ job.jobDescription || "No description provided." }}</p>
+              </div>
+
+              <div class="job-meta">
+                <div class="info-item">
+                  <span class="label">Posted:</span>
+                  <span class="value">{{
+                    formatTimestamp(job.createdAt)
+                  }}</span>
+                </div>
+              </div>
+
+              <div>
+                {{
+                  `http://localhost:8080/applications/${authStore?.selectedOrg?.id}/${job.id}`
+                }}
               </div>
             </div>
 
@@ -408,6 +513,7 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
+  font-family: sans-serif;
 }
 
 .dashboard-header {
@@ -432,16 +538,19 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
   padding: 1rem;
   border-radius: 8px;
   margin-bottom: 1rem;
+  text-align: center;
 }
 
 .error-message {
   background-color: #ffebee;
   color: #c62828;
+  border: 1px solid #ef9a9a;
 }
 
 .success-message {
   background-color: #e8f5e9;
   color: #2e7d32;
+  border: 1px solid #a5d6a7;
 }
 
 .create-button {
@@ -453,18 +562,24 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
   font-size: 1rem;
   font-weight: 500;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  transition: background-color 0.3s ease, opacity 0.3s ease;
 }
 
 .create-button:hover {
   background-color: #1565c0;
 }
 
+.create-button:disabled {
+  background-color: #cccccc;
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
 .dashboard-content {
   background-color: #f8f9fa;
   border-radius: 12px;
   padding: 2rem;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
 }
 
 .section-header {
@@ -474,11 +589,16 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
 .section-header h2 {
   color: #2c3e50;
   margin: 0 0 0.5rem 0;
+  font-size: 1.5rem;
 }
 
 .no-jobs-message {
-  color: #666;
+  color: #6c757d;
   font-style: italic;
+  padding: 1rem;
+  background-color: #e9ecef;
+  border-radius: 6px;
+  text-align: center;
 }
 
 .jobs-grid {
@@ -490,42 +610,46 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
 .job-card {
   background: white;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   transition: transform 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
 }
 
 .job-card:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
+  transform: translateY(-3px);
+  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
 .job-card-header {
   padding: 1.5rem;
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
+  background-color: #eef1f5; /* Lighter header */
+  border-bottom: 1px solid #dee2e6;
 }
 
 .job-card-header h3 {
   margin: 0 0 0.5rem 0;
   color: #1976d2;
-  font-size: 1.25rem;
+  font-size: 1.3rem;
 }
 
 .job-department {
-  color: #666;
+  color: #495057;
   font-size: 0.9rem;
+  font-weight: 500;
 }
 
 .job-card-content {
   padding: 1.5rem;
+  flex-grow: 1; /* Allows content to take up space */
 }
 
 .job-info {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
   gap: 1rem;
-  margin-bottom: 1rem;
+  margin-bottom: 1.5rem;
 }
 
 .info-item {
@@ -535,20 +659,67 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
 
 .label {
   font-size: 0.8rem;
-  color: #666;
+  color: #6c757d; /* Subtler label color */
   margin-bottom: 0.25rem;
+  text-transform: uppercase; /* Optional: makes labels stand out */
+  font-weight: 600;
 }
 
 .value {
   font-weight: 500;
-  color: #2c3e50;
+  color: #343a40;
+  font-size: 0.95rem;
 }
 
-.job-description {
-  color: #666;
+.job-details-section,
+.job-description-section {
+  margin-top: 1.5rem;
+}
+
+.job-details-section h4,
+.job-description-section h4 {
+  color: #343a40;
+  font-size: 1.1rem;
+  margin-bottom: 0.75rem;
+  border-bottom: 1px solid #e9ecef;
+  padding-bottom: 0.5rem;
+}
+
+.detail-item {
+  margin-bottom: 1rem; /* Increased spacing */
+}
+
+.value-paragraph {
+  font-weight: normal;
+  color: #495057;
   font-size: 0.95rem;
-  line-height: 1.5;
-  margin-top: 1rem;
+  line-height: 1.6;
+  margin-top: 0.25rem;
+  white-space: pre-wrap;
+}
+
+.job-description-section p {
+  color: #495057;
+  font-size: 0.95rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.job-meta {
+  margin-top: 1.5rem;
+  padding-top: 1rem;
+  border-top: 1px solid #e9ecef;
+  font-size: 0.85rem;
+  color: #6c757d;
+}
+
+.job-meta .info-item {
+  display: flex; /* Align label and value on the same line if desired */
+  justify-content: space-between;
+  align-items: center;
+}
+.job-meta .label {
+  margin-bottom: 0; /* Adjust if label and value are on the same line */
 }
 
 .job-card-actions {
@@ -558,12 +729,13 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
   display: flex;
   gap: 1rem;
   justify-content: flex-end;
+  margin-top: auto; /* Pushes actions to the bottom */
 }
 
 .action-button {
   background-color: #1976d2;
   color: white;
-  padding: 0.5rem 1rem;
+  padding: 0.6rem 1.2rem; /* Slightly adjusted padding */
   border: none;
   border-radius: 4px;
   font-size: 0.9rem;
@@ -573,6 +745,14 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
 
 .action-button:hover {
   background-color: #1565c0;
+}
+
+/* Additional style for alternative action button if needed */
+.action-button.secondary {
+  background-color: #6c757d;
+}
+.action-button.secondary:hover {
+  background-color: #5a6268;
 }
 
 @media (max-width: 768px) {
@@ -586,8 +766,22 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
     align-items: flex-start;
   }
 
+  .dashboard-header h1 {
+    font-size: 1.75rem;
+  }
+
   .jobs-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr; /* Single column on smaller screens */
+  }
+
+  .job-card-content {
+    padding: 1rem;
+  }
+  .job-card-header {
+    padding: 1rem;
+  }
+  .job-card-actions {
+    padding: 1rem;
   }
 }
 </style>
