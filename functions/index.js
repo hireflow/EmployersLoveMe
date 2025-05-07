@@ -21,11 +21,12 @@ exports.addOrganizationToUser = authFunctions.addOrganizationToUser;
 // Export organization and job functions
 exports.updateJobById = orgFunctions.updateJobById;
 exports.createOrg = orgFunctions.createOrg;
-exports.fetchUserOrgsByEmail = orgFunctions.fetchUserOrgsByEmail;
 exports.createJob = orgFunctions.createJob;
 exports.getJobsByOrgId = orgFunctions.getJobsByOrgId;
 exports.addNewJobIdToOrg = orgFunctions.addNewJobIdToOrg;
 exports.fetchUserOrgsById = orgFunctions.fetchUserOrgsById;
+exports.deleteJobById = orgFunctions.deleteJobById;
+exports.deleteOrg = orgFunctions.deleteOrg;
 
 exports.checkCandidateEmailExists = candidateFunctions.checkCandidateEmailExists;
 exports.signInCandidate = candidateFunctions.signInCandidate;

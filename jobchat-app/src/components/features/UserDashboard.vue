@@ -24,8 +24,12 @@ const location = ref("");
 const companyDescription = ref("");
 const missionStatement = ref("");
 
+const showDeleteConfirmation = ref(false);
+
+const deleteOrgByIdCallable = httpsCallable(functions, "deleteOrg"); // Renamed for clarity
+
 // Computed property to check if user is new (has no orgs)
-const isNewUser = computed(() => {
+let isNewUser = computed(() => {
   return !authStore.loading && authStore.orgs.length === 0;
 });
 
@@ -107,6 +111,58 @@ const handleCreateOrg = async () => {
   }
 };
 
+const openDeleteConfirmation = () => {
+  showDeleteConfirmation.value = true;
+};
+
+const closeDeleteConfirmation = () => {
+  if (authStore.selectedOrg){
+    authStore.selectedOrg.value = null;
+  }
+  else{
+    isNewUser = true;
+  }
+  showDeleteConfirmation.value = false;
+};
+
+const deleteOrg = async () => {
+  try {
+    
+    if (!authStore.selectedOrg?.id) {
+      console.log("No organization selected");
+      errorMessage.value = "Organization information is missing";
+      return;
+    }
+
+    errorMessage.value = "";
+    successMessage.value = "";
+
+    console.log("Deleting org with ID:", authStore.selectedOrg.id);
+    
+    const payload = {
+      orgId: authStore.selectedOrg.id,
+    };
+
+    const result = await deleteOrgByIdCallable(payload);
+    console.log("Delete Org result:", result);
+
+    if (result.data.success) {
+      console.log("Org deletion successful");
+      await authStore.fetchUserOrgs(true); // Refresh the orgs list
+      successMessage.value = "Organization deleted successfully!";
+      closeDeleteConfirmation();
+    } else {
+      console.error("Delete org failed:", result.data.message);
+      errorMessage.value =
+        result.data.message || "Failed to org job. Please try again.";
+    }
+  } catch (error) {
+    console.error("Error deleting job:", error);
+    errorMessage.value =
+      error.message || "An error occurred while deleting the org.";
+  }
+};
+
 const toggleForm = () => {
   formActive.value = !formActive.value;
   errorMessage.value = "";
@@ -156,13 +212,43 @@ const handleLogout = async () => {
       </button>
     </div>
 
+    <!-- Delete Confirmation Modal -->
+    <div v-if="showDeleteConfirmation" class="modal-overlay">
+      <div class="confirmation-modal">
+        <div class="confirmation-header">
+          <h3>Confirm Deletion</h3>
+        </div>
+        <div class="confirmation-content">
+          <p>Are you sure you want to delete the organization: <strong>{{ authStore.selectedOrg?.companyName }}</strong>?</p>
+          <p class="warning-text">This action cannot be undone and will delete all jobs in the organization!</p>
+        </div>
+        <div class="confirmation-actions">
+          <button @click="closeDeleteConfirmation" class="secondary-button">
+            Cancel
+          </button>
+          <button @click="deleteOrg" class="secondary-button delete">
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- Existing User Organization Section -->
     <div v-else class="org-management-section">
       <div class="section-header">
         <h2>Your Organizations</h2>
-        <button @click="toggleForm" class="secondary-button">
-          + New Organization
-        </button>
+        <div class="button-group">
+          <button
+            v-if="authStore.selectedOrg?.id"
+            class="secondary-button delete"
+            @click="openDeleteConfirmation()"
+          >
+            Delete Organization
+          </button>
+          <button @click="toggleForm" class="secondary-button">
+            + New Organization
+          </button>
+        </div>
       </div>
 
       <div class="org-selector">
@@ -225,30 +311,6 @@ const handleLogout = async () => {
         </div>
 
         <div class="form-group">
-          <label for="loginEmail">Login Email</label>
-          <input
-            id="loginEmail"
-            type="email"
-            v-model="createdLoginEmail"
-            placeholder="Enter login email"
-            required
-            :disabled="isSubmitting"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="loginPassword">Login Password</label>
-          <input
-            id="loginPassword"
-            type="password"
-            v-model="createdLoginPassword"
-            placeholder="Enter login password"
-            required
-            :disabled="isSubmitting"
-          />
-        </div>
-
-        <div class="form-group">
           <label for="companySize">Company Size</label>
           <input
             id="companySize"
@@ -301,17 +363,6 @@ const handleLogout = async () => {
             id="missionStatement"
             v-model="missionStatement"
             placeholder="Your company's mission"
-            required
-            :disabled="isSubmitting"
-          ></textarea>
-        </div>
-
-        <div class="form-group full-width">
-          <label for="companyValues">Company Values</label>
-          <textarea
-            id="companyValues"
-            v-model="companyValues"
-            placeholder="Core values of your company"
             required
             :disabled="isSubmitting"
           ></textarea>
@@ -381,6 +432,11 @@ const handleLogout = async () => {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 20px;
+}
+
+.button-group {
+  display: flex;
+  gap: 0.5rem; /* Optional spacing between buttons */
 }
 
 .error-message {
@@ -497,6 +553,13 @@ textarea {
   cursor: not-allowed;
 }
 
+.secondary-button.delete {
+  background-color: #dc3545;
+}
+.secondary-button.delete:hover {
+  background-color: #c82333;
+}
+
 .logout-button {
   background-color: #dc3545;
   color: white;
@@ -547,4 +610,58 @@ textarea {
 .org-details strong {
   color: #212529;
 }
+/* Modal styling for delete confirmation */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.confirmation-modal {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.confirmation-header {
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.confirmation-header h3 {
+  margin: 0;
+  color: #212529;
+  font-size: 1.3rem;
+}
+
+.confirmation-content {
+  padding: 1.5rem;
+}
+
+.warning-text {
+  color: #dc3545;
+  font-weight: 500;
+  margin-top: 0.5rem;
+}
+
+.confirmation-actions {
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
 </style>

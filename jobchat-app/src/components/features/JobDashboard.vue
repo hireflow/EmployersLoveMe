@@ -11,6 +11,8 @@ const functions = getFunctions();
 const getJobsByOrgId = httpsCallable(functions, "getJobsByOrgId");
 const createJobCallable = httpsCallable(functions, "createJob"); // Renamed for clarity
 const updateJobByIdCallable = httpsCallable(functions, "updateJobById"); // Renamed for clarity
+const deleteJobByIdCallable = httpsCallable(functions, "deleteJobById"); // Renamed for clarity
+
 
 const jobs = ref([]);
 const showJobForm = ref(false);
@@ -19,6 +21,7 @@ const showChatbotModal = ref(false);
 const selectedJob = ref(null);
 const errorMessage = ref("");
 const successMessage = ref("");
+const showDeleteConfirmation = ref(false);
 
 const formatTimestamp = (timestampInput) => {
   if (!timestampInput) return "N/A";
@@ -86,6 +89,61 @@ const fetchJobs = async () => {
     errorMessage.value =
       error.message || "Failed to fetch jobs. Please try again.";
     jobs.value = [];
+  }
+};
+
+const openDeleteConfirmation = (job) => {
+  selectedJob.value = { ...job };
+  showDeleteConfirmation.value = true;
+};
+
+const closeDeleteConfirmation = () => {
+  selectedJob.value = null;
+  showDeleteConfirmation.value = false;
+};
+
+const deleteJob = async () => {
+  try {
+    if (!selectedJob.value || !selectedJob.value.id) {
+      console.log("No job selected for deletion");
+      return;
+    }
+    
+    if (!authStore.selectedOrg?.id) {
+      console.log("No organization selected");
+      errorMessage.value = "Organization information is missing";
+      return;
+    }
+
+    errorMessage.value = "";
+    successMessage.value = "";
+
+    console.log("Deleting job with ID:", selectedJob.value.id);
+    console.log("From organization ID:", authStore.selectedOrg.id);
+    
+    const payload = {
+      jobId: selectedJob.value.id,
+      orgId: authStore.selectedOrg.id,
+    };
+
+    console.log("Payload for deleteJobById:", payload);
+    const result = await deleteJobByIdCallable(payload);
+    console.log("Delete job result:", result);
+
+    if (result.data.success) {
+      console.log("Job deletion successful");
+      await fetchJobs(); // Refresh the jobs list
+      successMessage.value = "Job deleted successfully!";
+      closeDeleteConfirmation();
+    } else {
+      console.error("Delete job failed:", result.data.message);
+      errorMessage.value =
+        result.data.message || "Failed to delete job. Please try again.";
+    }
+  } catch (error) {
+    console.error("Error deleting job:", error);
+    errorMessage.value =
+      error.message || "An error occurred while deleting the job.";
   }
 };
 
@@ -466,6 +524,9 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
               <button @click="openChatbotModal(job)" class="action-button">
                 Edit Config
               </button>
+              <button @click="openDeleteConfirmation(job)" class="action-button delete">
+                Delete
+              </button>
             </div>
           </div>
         </div>
@@ -505,6 +566,27 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
         </template>
       </Suspense>
     </ErrorBoundary>
+
+    <!-- Delete Confirmation Modal -->
+    <div v-if="showDeleteConfirmation" class="modal-overlay">
+      <div class="confirmation-modal">
+        <div class="confirmation-header">
+          <h3>Confirm Deletion</h3>
+        </div>
+        <div class="confirmation-content">
+          <p>Are you sure you want to delete the job: <strong>{{ selectedJob?.jobTitle }}</strong>?</p>
+          <p class="warning-text">This action cannot be undone!</p>
+        </div>
+        <div class="confirmation-actions">
+          <button @click="closeDeleteConfirmation" class="action-button secondary">
+            Cancel
+          </button>
+          <button @click="deleteJob" class="action-button delete">
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -755,6 +837,67 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
   background-color: #5a6268;
 }
 
+.action-button.delete {
+  background-color: #dc3545;
+}
+.action-button.delete:hover {
+  background-color: #c82333;
+}
+
+/* Modal styling for delete confirmation */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.confirmation-modal {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 500px;
+  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+  overflow: hidden;
+}
+
+.confirmation-header {
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.confirmation-header h3 {
+  margin: 0;
+  color: #212529;
+  font-size: 1.3rem;
+}
+
+.confirmation-content {
+  padding: 1.5rem;
+}
+
+.warning-text {
+  color: #dc3545;
+  font-weight: 500;
+  margin-top: 0.5rem;
+}
+
+.confirmation-actions {
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border-top: 1px solid #e9ecef;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
 @media (max-width: 768px) {
   .job-dashboard {
     padding: 1rem;
@@ -782,6 +925,10 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
   }
   .job-card-actions {
     padding: 1rem;
+  }
+  .confirmation-modal {
+    width: 95%;
+    margin: 0 1rem;
   }
 }
 </style>
