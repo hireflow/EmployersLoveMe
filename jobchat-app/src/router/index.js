@@ -15,7 +15,7 @@ import { useCandidateAuthStore } from "@/stores"; // Assumes stores/index.js exp
 const routes = [
   {
     path: "/",
-    // redirect: "/dashboard", // TO-DO REDIRECT TO LANDING PAGE
+    redirect: "/dashboard", // TO-DO REDIRECT TO LANDING PAGE
   },
   {
     path: "/dashboard",

@@ -23,6 +23,8 @@ exports.getPublicJobDetails = jobFunctions.getPublicJobDetails;
 
 // application functions
 exports.createApplication = applicationFunctions.createApplication;
+exports.findOneOrManyApplicationsById =
+  applicationFunctions.findOneOrManyApplicationsById;
 
 // Export auth functions
 exports.registerUser = authFunctions.registerUser;

@@ -110,7 +110,7 @@ exports.createApplication = onCall(async (request) => {
       score: null,
       createdAt: now,
       updatedAt: now,
-      // maybe more fields later 
+      // maybe more fields later
       // we will populate these fields later we can search by candidateId, jobID
     };
 
@@ -148,6 +148,83 @@ exports.createApplication = onCall(async (request) => {
       "internal",
       "An unexpected error occurred while creating the application.",
       error.message
+    );
+  }
+});
+
+exports.findOneOrManyApplicationsById = onCall(async (request) => {
+  try {
+    const { applicationIds } = request.data;
+    if (
+      !applicationIds ||
+      !Array.isArray(applicationIds) ||
+      applicationIds.length === 0
+    ) {
+      console.error(
+        "Application ID array is null, not an array, or empty",
+        request.data
+      );
+      throw new HttpsError(
+        "invalid-argument",
+        "Please provide a valid array of application IDs"
+      );
+    }
+
+    if (applicationIds.length <= 29) {
+      const applicationSnapshot = await db
+        .collection("applications")
+        .where(admin.firestore.FieldPath.documentId(), "in", applicationIds)
+        .get();
+
+      const validApplications = applicationSnapshot.docs.map((doc) => ({
+        id: doc.id,
+        ...doc.data(),
+      }));
+
+      return {
+        success: true,
+        applications: validApplications,
+        message: `Successfully retrieved ${validApplications.length} applications`,
+      };
+    } else {
+      const batches = [];
+      //Firestore's in query currently supports up to 30 values.
+      for (let i = 0; i < applicationIds.length; i += 29) {
+        const batch = applicationIds.slice(i, i + 29);
+        batches.push(batch);
+      }
+
+      const batchPromises = batches.map(async (batchIds) => {
+        const snapShot = await db
+          .collection("applications")
+          .where(admin.firestore.FieldPath.documentId(), "in", batchIds)
+          .get();
+
+        return snapShot.docs.map((doc) => ({
+          id: doc.id,
+          ...doc.data(),
+        }));
+      });
+
+      const batchResults = await Promise.all(batchPromises);
+      const validApplications = batchResults
+        .flat()
+        .filter((app) => app !== null);
+
+      return {
+        success: true,
+        applications: validApplications,
+        message: `Successfully retrieved ${validApplications.length} applications`,
+      };
+    }
+  } catch (error) {
+    console.error("Error finding one or many applications by id:", error);
+    if (error instanceof HttpsError) {
+      throw error; // Re-throw HttpsError
+    }
+    throw new HttpsError(
+      "internal",
+      "An unexpected error occurred while finding the application."
     );
   }
 });
