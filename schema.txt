@@ -80,7 +80,8 @@ applications
 {
     applicationID: {
         "candidateId": "candidateId123",
-        "jobID": 
+        "jobID":
+        "orgID":  
         "applicationDate": "2025-04-29T14:00:00Z",
         "status": "completed",
         "messages": [
