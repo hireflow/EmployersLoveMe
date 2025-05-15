@@ -17,10 +17,16 @@ const routes = [
     path: "/",
     redirect: "/dashboard", // TO-DO REDIRECT TO LANDING PAGE
   },
+  // {
+  //   path: "/dashboard",
+  //   name: "UserDashboard",
+  //   component: () => import("@/components/features/UserDashboard.vue"),
+  //   meta: { requiresAuth: true },
+  // },
   {
     path: "/dashboard",
-    name: "UserDashboard",
-    component: () => import("@/components/features/UserDashboard.vue"),
+    name: "UserDashboard3",
+    component: () => import("@/components/features/UserDashboard3.vue"),
     meta: { requiresAuth: true },
   },
   {

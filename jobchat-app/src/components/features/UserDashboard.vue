@@ -4,6 +4,7 @@ import { useRouter } from "vue-router";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { ref, computed } from "vue";
 import JobDashboard from "./JobDashboard.vue";
+import SideBarLayout from "../layouts/SideBarLayout.vue";
 
 const authStore = useAuthStore();
 const router = useRouter();
@@ -181,6 +182,8 @@ const handleLogout = async () => {
 </script>
 
 <template>
+
+<SideBarLayout >
   <div class="dashboard-container">
     <header class="dashboard-header">
       <h1>Welcome, {{ authStore.user?.email }}</h1>
@@ -387,6 +390,8 @@ const handleLogout = async () => {
     <!-- Job Dashboard -->
     <JobDashboard v-if="authStore.selectedOrg" />
   </div>
+
+</SideBarLayout>
 </template>
 
 <style scoped>
