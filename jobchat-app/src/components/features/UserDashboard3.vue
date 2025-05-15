@@ -1,18 +1,19 @@
 <script setup>
 import { useAuthStore } from "@/stores/auth";
-import { useRouter } from "vue-router";
+// import { useRouter } from "vue-router";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { ref, computed } from "vue";
-import JobDashboard from "./JobDashboard.vue";
+// import JobDashboard from "./JobDashboard.vue";
 import SideBarLayout from "../layouts/SideBarLayout.vue";
 
 const authStore = useAuthStore();
-const router = useRouter();
+// const router = useRouter();
 
 // Initialize Firebase Functions
 const functions = getFunctions();
 const formActive = ref(false);
 const isSubmitting = ref(false);
+// const organizationToDelete = ref(null);
 
 // Create a callable function reference
 const companyName = ref("");
@@ -33,6 +34,21 @@ const deleteOrgByIdCallable = httpsCallable(functions, "deleteOrg"); // Renamed 
 let isNewUser = computed(() => {
   return !authStore.loading && authStore.orgs.length === 0;
 });
+
+const selectOrg = async (org) => {
+  try {
+    await authStore.setSelectedOrg(org);
+    successMessage.value = `${org.companyName} is now your active organization`;
+    
+    // Clear message after a short delay
+    setTimeout(() => {
+      successMessage.value = "";
+    }, 2000);
+  } catch (error) {
+    errorMessage.value = "Error selecting organization";
+    console.error("Error selecting organization:", error);
+  }
+};
 
 const handleCreateOrg = async () => {
   if (isSubmitting.value) return;
@@ -170,21 +186,29 @@ const toggleForm = () => {
   successMessage.value = "";
 };
 
-const handleLogout = async () => {
-  try {
-    await authStore.logout();
-    router.push("/login");
-  } catch (error) {
-    console.error("Logout error:", error);
-    errorMessage.value = "Failed to logout. Please try again.";
-  }
-};
+// const handleLogout = async () => {
+//   try {
+//     await authStore.logout();
+//     router.push("/login");
+//   } catch (error) {
+//     console.error("Logout error:", error);
+//     errorMessage.value = "Failed to logout. Please try again.";
+//   }
+// };
 </script>
 
 <template>
   <SideBarLayout>
     <!-- Main Content Area -->
     <div class="dashboard-container">
+      <!-- Page Header -->
+      <div class="page-header">
+        <h1 class="page-title">Organizations</h1>
+        <button @click="toggleForm" class="btn btn-primary add-btn">
+          + Add Organization
+        </button>
+      </div>
+
       <!-- Alerts Section -->
       <div class="alerts-container">
         <div v-if="errorMessage" class="alert alert-error">
@@ -207,86 +231,43 @@ const handleLogout = async () => {
             <path fill="currentColor" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
           </svg>
         </div>
-        <h2 class="welcome-title">Welcome to JobChat! 🎉</h2>
+        <h2 class="welcome-title">Welcome to Swiftly! 🎉</h2>
         <p class="welcome-text">Get started by creating your first organization to manage your hiring process.</p>
         <div class="welcome-actions">
           <button @click="toggleForm" class="btn btn-primary">
             Create Your First Organization
           </button>
-          
-          <button @click="handleLogout" class="btn btn-danger mt-20">
-            Logout
-          </button>
         </div>
       </div>
 
-      <!-- Existing User Organization Section -->
-      <div v-else class="org-content">
-        <div class="card">
-          <div class="card-header">
-            <h2 class="card-title">Your Organizations</h2>
-            <div class="card-actions">
-              <button 
-                v-if="authStore.selectedOrg?.id" 
-                @click="openDeleteConfirmation" 
-                class="btn btn-danger btn-sm"
-              >
-                Delete Organization
-              </button>
-              <button 
-                @click="toggleForm" 
-                class="btn btn-primary btn-sm"
-              >
-                + New Organization
-              </button>
-            </div>
+      <!-- Organization Grid -->
+      <div v-else class="org-grid">
+        <!-- Organization Cards -->
+        <div v-for="org in authStore.orgs" :key="org.id" class="org-card" @click="selectOrg(org)">
+          <div class="org-card-header">
+            <h3 class="org-title">{{ org.companyName }}</h3>
           </div>
-          
-          <div class="card-body">
-            <div class="form-group">
-              <label for="org-select" class="form-label">Select an organization</label>
-              <select 
-                id="org-select"
-                :value="authStore.selectedOrg?.id" 
-                @change="(e) => {
-                  const selected = authStore.orgs.find(org => org.id === e.target.value);
-                  if (selected) authStore.setSelectedOrg(selected);
-                }"
-                class="form-select"
-              >
-                <option value="">Select an organization</option>
-                <option v-for="org in authStore.orgs" :key="org.id" :value="org.id">
-                  {{ org.companyName }}
-                </option>
-              </select>
+          <div class="org-card-body">
+            <div v-if="org.id === authStore.selectedOrg?.id" class="selected-badge">Active</div>
+            <div class="org-info">
+              <p v-if="org.industry"><span class="info-label">Industry:</span> {{ org.industry }}</p>
+              <p v-if="org.location"><span class="info-label">Location:</span> {{ org.location }}</p>
+              <p v-if="org.companySize"><span class="info-label">Size:</span> {{ org.companySize }}</p>
             </div>
-
-            <div v-if="authStore.selectedOrg" class="org-details">
-              <h3 class="org-details-title">Current Organization</h3>
-              <div class="org-details-grid">
-                <div class="org-detail-item">
-                  <p class="detail-label">Name</p>
-                  <p class="detail-value">{{ authStore.selectedOrg.companyName }}</p>
-                </div>
-                <div class="org-detail-item">
-                  <p class="detail-label">Industry</p>
-                  <p class="detail-value">{{ authStore.selectedOrg.industry || 'Not specified' }}</p>
-                </div>
-                <div class="org-detail-item">
-                  <p class="detail-label">Location</p>
-                  <p class="detail-value">{{ authStore.selectedOrg.location || 'Not specified' }}</p>
-                </div>
-                <div class="org-detail-item">
-                  <p class="detail-label">Size</p>
-                  <p class="detail-value">{{ authStore.selectedOrg.companySize || 'Not specified' }}</p>
-                </div>
-              </div>
+            <div class="important-updates">
+              <h4>Important Updates</h4>
+              <p>No important updates</p>
+            </div>
+            <div class="org-actions">
+              <button @click.stop="openDeleteConfirmation(org)" class="btn btn-outline btn-sm">
+                Delete
+              </button>
+              <button @click.stop="selectOrg(org)" class="btn btn-primary btn-sm" :disabled="org.id === authStore.selectedOrg?.id">
+                {{ org.id === authStore.selectedOrg?.id ? 'Selected' : 'Select' }}
+              </button>
             </div>
           </div>
         </div>
-
-        <!-- Job Dashboard -->
-        <JobDashboard v-if="authStore.selectedOrg" />
       </div>
 
       <!-- Organization Creation Form -->
@@ -425,6 +406,26 @@ const handleLogout = async () => {
   padding: 20px;
 }
 
+/* Page Header */
+.page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.page-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0;
+}
+
+.add-btn {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
 /* Alerts */
 .alerts-container {
   margin-bottom: 20px;
@@ -511,49 +512,219 @@ const handleLogout = async () => {
   margin-top: 20px;
 }
 
-.mt-20 {
-  margin-top: 20px;
+/* Organization Grid */
+.org-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
 }
 
-/* Organization Content */
-.org-content {
-  display: flex;
-  flex-direction: column;
-  gap: 20px;
-}
-
-/* Card Styles */
-.card {
-  background-color: #ffffff;
+.org-card {
+  background-color: white;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   overflow: hidden;
+  transition: all 0.2s ease-in-out;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  position: relative;
 }
 
-.card-header {
+.org-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+.org-card-header {
+  padding: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #f7fafc;
+}
+
+.org-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.org-card-body {
+  padding: 16px;
+  position: relative;
+}
+
+.selected-badge {
+  position: absolute;
+  top: -10px;
+  right: 16px;
+  background-color: #48bb78;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 12px;
+}
+
+.org-info {
+  margin-bottom: 16px;
+}
+
+.org-info p {
+  margin: 8px 0;
+  font-size: 14px;
+  color: #4a5568;
+}
+
+.info-label {
+  font-weight: 500;
+  color: #718096;
+}
+
+.important-updates {
+  background-color: #ebf4ff;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+}
+
+.important-updates h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2b6cb0;
+  margin: 0 0 8px 0;
+}
+
+.important-updates p {
+  font-size: 13px;
+  color: #4a5568;
+  margin: 0;
+}
+
+.org-actions {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Button Styles */
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
+}
+
+.btn-primary {
+  background-color: #3b82f6;
+  color: white;
+}
+
+.btn-primary:hover {
+  background-color: #2563eb;
+}
+
+.btn-primary:disabled {
+  background-color: #bfdbfe;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background-color: #e2e8f0;
+  color: #4a5568;
+}
+
+.btn-secondary:hover {
+  background-color: #cbd5e0;
+}
+
+.btn-danger {
+  background-color: #e53e3e;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c53030;
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: #e53e3e;
+  border: 1px solid #e53e3e;
+}
+
+.btn-outline:hover {
+  background-color: #fdf2f2;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* Form Elements */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
   align-items: center;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.modal-container {
+  background: white;
+  border-radius: 8px;
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-sm {
+  max-width: 500px;
+}
+
+.modal-header {
   padding: 20px;
   border-bottom: 1px solid #e2e8f0;
 }
 
-.card-title {
+.modal-title {
   font-size: 18px;
   font-weight: 600;
   color: #1a202c;
+  margin: 0;
 }
 
-.card-actions {
-  display: flex;
-  gap: 10px;
-}
-
-.card-body {
+.modal-body {
   padding: 20px;
 }
 
-/* Form Elements */
+.modal-footer {
+  padding: 15px 20px;
+  background-color: #f7fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
 .form-group {
   margin-bottom: 15px;
 }
@@ -593,106 +764,11 @@ const handleLogout = async () => {
   resize: vertical;
 }
 
-.form-grid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 15px;
-}
-
 .form-actions {
   display: flex;
   justify-content: flex-end;
   gap: 10px;
   margin-top: 20px;
-}
-
-/* Organization Details */
-.org-details {
-  background-color: #f7fafc;
-  border-radius: 6px;
-  padding: 20px;
-  margin-top: 20px;
-}
-
-.org-details-title {
-  font-size: 16px;
-  font-weight: 600;
-  color: #2d3748;
-  margin-bottom: 15px;
-}
-
-.org-details-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
-  gap: 15px;
-}
-
-.org-detail-item {
-  margin-bottom: 10px;
-}
-
-.detail-label {
-  font-size: 12px;
-  color: #718096;
-  margin-bottom: 4px;
-}
-
-.detail-value {
-  font-weight: 500;
-  color: #2d3748;
-}
-
-/* Modal */
-.modal-overlay {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  background-color: rgba(0, 0, 0, 0.5);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 1000;
-  padding: 20px;
-}
-
-.modal-container {
-  background: white;
-  border-radius: 8px;
-  width: 100%;
-  max-width: 700px;
-  max-height: 90vh;
-  overflow-y: auto;
-  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-}
-
-.modal-sm {
-  max-width: 500px;
-}
-
-.modal-header {
-  padding: 20px;
-  border-bottom: 1px solid #e2e8f0;
-}
-
-.modal-title {
-  font-size: 18px;
-  font-weight: 600;
-  color: #1a202c;
-}
-
-.modal-body {
-  padding: 20px;
-}
-
-.modal-footer {
-  padding: 15px 20px;
-  background-color: #f7fafc;
-  border-top: 1px solid #e2e8f0;
-  display: flex;
-  justify-content: flex-end;
-  gap: 10px;
 }
 
 .confirm-text {
@@ -710,56 +786,12 @@ const handleLogout = async () => {
   margin-top: 8px;
 }
 
-/* Buttons */
-.btn {
-  padding: 8px 16px;
-  border: none;
-  border-radius: 4px;
-  font-size: 14px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: background-color 0.2s;
-}
-
-.btn-primary {
-  background-color: #3b82f6;
-  color: white;
-}
-
-.btn-primary:hover {
-  background-color: #2563eb;
-}
-
-.btn-secondary {
-  background-color: #e2e8f0;
-  color: #4a5568;
-}
-
-.btn-secondary:hover {
-  background-color: #cbd5e0;
-}
-
-.btn-danger {
-  background-color: #e53e3e;
-  color: white;
-}
-
-.btn-danger:hover {
-  background-color: #c53030;
-}
-
-.btn-sm {
-  padding: 6px 12px;
-  font-size: 12px;
-}
-
-.btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
 /* Media Queries */
 @media (max-width: 768px) {
+  .org-grid {
+    grid-template-columns: 1fr;
+  }
+  
   .form-grid {
     grid-template-columns: 1fr;
   }
@@ -768,18 +800,10 @@ const handleLogout = async () => {
     grid-column: span 1;
   }
   
-  .card-header {
+  .page-header {
     flex-direction: column;
     align-items: flex-start;
-  }
-  
-  .card-actions {
-    margin-top: 15px;
-    width: 100%;
-  }
-  
-  .btn {
-    flex: 1;
+    gap: 12px;
   }
 }
 </style>
