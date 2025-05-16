@@ -3,7 +3,8 @@ import { useAuthStore } from "@/stores/auth";
 // import { useRouter } from "vue-router";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { ref, computed } from "vue";
-// import JobDashboard from "./JobDashboard.vue";
+import { RouterLink } from 'vue-router';
+import JobDashboard from "./JobDashboard.vue";
 import SideBarLayout from "../layouts/SideBarLayout.vue";
 
 const authStore = useAuthStore();
@@ -14,6 +15,8 @@ const functions = getFunctions();
 const formActive = ref(false);
 const isSubmitting = ref(false);
 // const organizationToDelete = ref(null);
+
+const jobs = ref([]); // Placeholder for jobs data
 
 // Create a callable function reference
 const companyName = ref("");
@@ -29,6 +32,7 @@ const missionStatement = ref("");
 const showDeleteConfirmation = ref(false);
 
 const deleteOrgByIdCallable = httpsCallable(functions, "deleteOrg"); // Renamed for clarity
+const getJobsByOrgId = httpsCallable(functions, "getJobsByOrgId");
 
 // Computed property to check if user is new (has no orgs)
 let isNewUser = computed(() => {
@@ -38,7 +42,7 @@ let isNewUser = computed(() => {
 const selectOrg = async (org) => {
   try {
     await authStore.setSelectedOrg(org);
-    successMessage.value = `${org.companyName} is now your active organization`;
+    successMessage.value = `${org.companyName} is now your selected organization`;
     
     // Clear message after a short delay
     setTimeout(() => {
@@ -186,16 +190,54 @@ const toggleForm = () => {
   successMessage.value = "";
 };
 
-// const handleLogout = async () => {
+const fetchJobs = async () => {
+  try {
+    if (!authStore.selectedOrg?.id) {
+      jobs.value = []; // Clear jobs if no org is selected
+      return;
+    }
+
+    console.log("Fetching jobs for org:", authStore.selectedOrg.id);
+    errorMessage.value = ""; // Clear previous errors
+    const result = await getJobsByOrgId({
+      orgId: authStore.selectedOrg.id,
+    });
+    console.log("Raw result from getJobsByOrgId:", result);
+
+    if (result.data.success) {
+      jobs.value = result.data.data || [];
+      console.log(
+        "Fetched and processed jobs:",
+        JSON.stringify(jobs.value, null, 2)
+      );
+    } else {
+      jobs.value = [];
+      errorMessage.value =
+        result.data.message ||
+        "Failed to fetch jobs (server indicated no success).";
+    }
+  } catch (error) {
+    console.error("Error fetching jobs:", error);
+    errorMessage.value =
+      error.message || "Failed to fetch jobs. Please try again.";
+    jobs.value = [];
+  }
+};
+
+// const viewJobDashboard = async () => {
 //   try {
-//     await authStore.logout();
-//     router.push("/login");
+//     const currOrg = authStore.selectedOrg;
 //   } catch (error) {
-//     console.error("Logout error:", error);
-//     errorMessage.value = "Failed to logout. Please try again.";
+
 //   }
 // };
 </script>
+
+<!-- <div>
+                {{
+                  `http://localhost:8080/applications/${authStore?.selectedOrg?.id}/${job.id}`
+                }}
+              </div> -->
 
 <template>
   <SideBarLayout>
@@ -248,7 +290,7 @@ const toggleForm = () => {
             <h3 class="org-title">{{ org.companyName }}</h3>
           </div>
           <div class="org-card-body">
-            <div v-if="org.id === authStore.selectedOrg?.id" class="selected-badge">Active</div>
+            <div v-if="org.id === authStore.selectedOrg?.id" class="selected-badge">Selected</div>
             <div class="org-info">
               <p v-if="org.industry"><span class="info-label">Industry:</span> {{ org.industry }}</p>
               <p v-if="org.location"><span class="info-label">Location:</span> {{ org.location }}</p>
@@ -262,9 +304,11 @@ const toggleForm = () => {
               <button @click.stop="openDeleteConfirmation(org)" class="btn btn-outline btn-sm">
                 Delete
               </button>
-              <button @click.stop="selectOrg(org)" class="btn btn-primary btn-sm" :disabled="org.id === authStore.selectedOrg?.id">
-                {{ org.id === authStore.selectedOrg?.id ? 'Selected' : 'Select' }}
-              </button>
+              <RouterLink 
+                to="`/${authStore?.selectedOrg?.id}/${job.id}`" 
+                class="btn btn-outline btn-sm">
+                View Jobs
+              </RouterLink>
             </div>
           </div>
         </div>
@@ -373,6 +417,8 @@ const toggleForm = () => {
           </form>
         </div>
       </div>
+
+      <JobDashboard v-if="authStore.selectedOrg" />
 
       <!-- Delete Confirmation Modal -->
       <div v-if="showDeleteConfirmation" class="modal-overlay">

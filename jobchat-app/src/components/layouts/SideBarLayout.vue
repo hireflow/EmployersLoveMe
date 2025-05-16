@@ -9,10 +9,10 @@ const router = useRouter();
 // Sample jobs data - replace with actual data source
 // const jobs = ref([]);
 
-const onOrgChange = (e) => {
-  const selected = authStore.orgs.find(org => org.id === e.target.value);
-  if (selected) authStore.setSelectedOrg(selected);
-};
+// const onOrgChange = (e) => {
+//   const selected = authStore.orgs.find(org => org.id === e.target.value);
+//   if (selected) authStore.setSelectedOrg(selected);
+// };
 
 // const createOrgAction = () => {
 //   // Emit an event that the parent component can handle
@@ -51,6 +51,8 @@ const logoutAction = async () => {
     console.error("Logout error:", error);
   }
 };
+
+
 </script>
 
 
@@ -75,7 +77,7 @@ const logoutAction = async () => {
         <!-- Organizations -->
         <div class="sidebar-section">
           <h2 class="section-title">Organizations</h2>
-          <select 
+          <!-- <select 
             :value="authStore.selectedOrg?.id" 
             @change="onOrgChange"
             class="org-select"
@@ -84,7 +86,7 @@ const logoutAction = async () => {
             <option v-for="org in authStore.orgs" :key="org.id" :value="org.id">
               {{ org.companyName }}
             </option>
-          </select>
+          </select> -->
         </div>      
         <!-- Navigation Links -->
         <div class="sidebar-section">
