@@ -20,13 +20,16 @@
  */
 import { onMounted, ref } from "vue";
 import { useAuthStore } from "@/stores/auth";
+import { useCandidateAuthStore } from "./stores/candidate";
 
 const authStore = useAuthStore();
+const candidateAuthStore = useCandidateAuthStore();
 const initialized = ref(false);
 
 onMounted(async () => {
   if (!initialized.value) {
     await authStore.initialize();
+    await candidateAuthStore.initialize();
     initialized.value = true;
   }
 });

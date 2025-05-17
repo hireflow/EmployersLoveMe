@@ -1,21 +1,26 @@
 import { defineStore } from "pinia";
-import { ref, watch } from "vue";
+import { ref, computed } from "vue"; // Added computed
+import {
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword, // Added
+  signOut,
+  setPersistence,
+  browserLocalPersistence,
+} from "firebase/auth"; // Added Firebase Auth functions
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { app } from "@/firebase.config"; // Ensure this path is correct
+import { app, auth } from "@/firebase.config"; // Ensure 'auth' is exported from firebase.config
 import { useRouter } from "vue-router";
-
-const CANDIDATE_STORAGE_KEY = "hireflow_candidate_auth";
 
 export const useCandidateAuthStore = defineStore("candidate-auth", () => {
   const functions = getFunctions(app);
-  const router = useRouter(); // Get router instance here
+  const router = useRouter();
 
-  const candidate = ref(null);
-  const loading = ref(false); // For general async operations like login/register
-  const initLoading = ref(true); // Specifically for initial load from localStorage
-  const error = ref(null); // For login/register/checkIfCandidateExists errors
+  const candidate = ref(null); // This will store the Firebase User object
+  const candidateProfile = ref(null); // For additional profile data (name, phone, resume, application IDs)
+  const loading = ref(true); // Combined loading state, true initially for initialize
+  const error = ref(null);
 
-  // --- NEW STATE PROPERTIES FOR APPLICATIONS ---
   const applicationsList = ref([]);
   const isLoadingApplications = ref(false);
   const applicationsError = ref(null);
@@ -24,164 +29,205 @@ export const useCandidateAuthStore = defineStore("candidate-auth", () => {
     functions,
     "checkCandidateEmailExists"
   );
-  const registerCandidateCallable = httpsCallable(
+  // Callable to create/update candidate profile data in your DB (e.g., Firestore)
+  const setCandidateProfileCallable = httpsCallable( 
     functions,
-    "registerCandidate"
+    "setCandidateProfile" // Example name: creates or updates profile
   );
-  const signInCandidateCallable = httpsCallable(functions, "signInCandidate");
+  // Callable to fetch candidate profile data
+  const getCandidateProfileCallable = httpsCallable(
+    functions,
+    "getCandidateProfile" // Example name
+  );
 
   const findApplicationsCallable = httpsCallable(
     functions,
     "findOneOrManyApplicationsById"
   );
-
   const getJobDetailsCallable = httpsCallable(functions, "getPublicJobDetails");
   const getOrgDetailsCallable = httpsCallable(functions, "getPublicOrgDetails");
 
-  const initialize = () => {
-    initLoading.value = true;
+  // --- Computed Properties ---
+  const isAuthenticated = computed(() => !!candidate.value && !!candidateProfile.value);
+
+  const currentCandidate = computed(() => {
+    if (candidate.value && candidateProfile.value) {
+      return {
+        uid: candidate.value.uid,
+        email: candidate.value.email,
+        emailVerified: candidate.value.emailVerified,
+        ...candidateProfile.value, // Spread additional profile details
+      };
+    }
+    return null;
+  });
+
+  // --- Internal Helper Functions ---
+  const resetState = () => {
+    candidate.value = null;
+    candidateProfile.value = null;
+    applicationsList.value = [];
+    applicationsError.value = null;
+    isLoadingApplications.value = false;
+    error.value = null;
+  };
+
+  const clearError = () => {
+    error.value = null;
+  };
+
+  const initialize = async () => {
+    loading.value = true; // Explicitly set loading at the start of initialization
+    error.value = null;
     try {
-      const storedCandidate = localStorage.getItem(CANDIDATE_STORAGE_KEY);
-      if (storedCandidate) {
-        const parsedCandidate = JSON.parse(storedCandidate);
-        if (parsedCandidate && parsedCandidate.id && parsedCandidate.email) {
-          candidate.value = parsedCandidate;
-          console.log("Candidate loaded from localStorage:", candidate.value);
-        } else {
-          console.warn("Stored candidate data is invalid. Clearing.");
-          localStorage.removeItem(CANDIDATE_STORAGE_KEY);
-        }
-      }
-    } catch (e) {
-      console.error("Error loading candidate from localStorage:", e);
-      localStorage.removeItem(CANDIDATE_STORAGE_KEY);
-    } finally {
-      initLoading.value = false;
+      await setPersistence(auth, browserLocalPersistence);
+      return new Promise((resolve, reject) => { // Added reject for error handling
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          loading.value = true;
+          if (firebaseUser) {
+            candidate.value = firebaseUser;
+            await fetchCandidateProfile(firebaseUser.uid); // This sets candidateProfile.value
+            if (isAuthenticated.value && candidateProfile.value?.applications?.length) {
+                await fetchMyApplications();
+            } else if (!candidateProfile.value) {
+                console.warn(`User ${firebaseUser.uid} authenticated with Firebase, but no candidate profile found.`);
+            }
+          } else {
+            resetState();
+          }
+          loading.value = false; // Processing of this auth state change is complete
+          resolve(unsubscribe);
+        }, (authError) => { // Add Firebase's own error callback for onAuthStateChanged
+            console.error("Error in onAuthStateChanged listener:", authError);
+            error.value = authError.message || "Auth state listener error.";
+            resetState();
+            loading.value = false;
+            reject(authError);
+        });
+      });
+    } catch (err) {
+      console.error("Error initializing candidate auth:", err);
+      error.value = err.message || "Initialization failed.";
+      resetState();
+      loading.value = false;
+      throw err; // Re-throw to indicate critical failure if needed
     }
   };
 
-  initialize(); // Called on store setup
-
-  watch(
-    candidate,
-    (newCandidateValue) => {
-      if (newCandidateValue) {
-        localStorage.setItem(
-          CANDIDATE_STORAGE_KEY,
-          JSON.stringify(newCandidateValue)
-        );
-        console.log("Candidate data saved to localStorage.");
+  const fetchCandidateProfile = async (uid) => {
+    if (!uid) return;
+    try {
+      const result = await getCandidateProfileCallable({uid});
+      if (result.data.success && result.data.candidate) {
+        candidateProfile.value = result.data.candidate;
       } else {
-        localStorage.removeItem(CANDIDATE_STORAGE_KEY);
-        console.log("Candidate data removed from localStorage.");
+        console.warn(
+          "Could not fetch candidate profile or profile does not exist:",
+          result.data.message
+        );
+        candidateProfile.value = null; // Or initialize with empty structure
       }
-    },
-    { deep: true }
-  );
+    } catch (err) {
+      console.error("Error fetching candidate profile:", err);
+      candidateProfile.value = null;
+    } 
+  };
+
+  const register = async (email, password, name, phone, resumeUrl = "") => {
+    loading.value = true;
+    error.value = null;
+    try {
+      const userCredential = await createUserWithEmailAndPassword(
+        auth,
+        email,
+        password
+      );
+      const firebaseUser = userCredential.user;
+
+      await setCandidateProfileCallable({
+        uid: firebaseUser.uid,
+        email: firebaseUser.email,
+        name,
+        phone,
+        resumeUrl,
+        applications: [], // Initialize with empty applications
+      });
+      // The function resolves successfully if Firebase user is created and profile creation is initiated.
+      return { success: true, uid: firebaseUser.uid };
+    } catch (err) {
+      console.error("Error in candidate register:", err);
+      // Handle specific Firebase errors (e.g., email-already-in-use)
+      error.value = err.code || err.message || "Could not register candidate.";
+      throw err; // Re-throw for the component to handle
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const login = async (email, password) => {
+    loading.value = true;
+    error.value = null;
+    try {
+      await signInWithEmailAndPassword(auth, email, password);
+      await new Promise(r => setTimeout(r, 50)); // Small delay for state propagation
+      await fetchCandidateProfile(candidate.value.uid);
+      if (!isAuthenticated.value) {
+        error.value = "Login failed: This account is not registered as a candidate or the profile is missing.";
+        await signOut(auth);
+        throw new Error(error.value);
+      }
+
+    } catch (err) {
+      console.error("Error in candidate login:", err);
+      error.value = err.code || err.message || "Could not log in.";
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
+
+  const logout = async () => {
+    loading.value = true;
+    error.value = null;
+    try {
+      await signOut(auth);
+      router.push({ name: "CandidateLogin" }); // Ensure this route exists
+    } catch (err) {
+      console.error("Error logging out candidate:", err);
+      error.value = err.message || "Logout failed.";
+      throw err;
+    } finally {
+      loading.value = false;
+    }
+  };
 
   const checkIfCandidateExists = async (emailToCheck) => {
     loading.value = true;
     error.value = null;
     try {
+      // This callable likely checks your custom candidate profiles collection, not Firebase Auth directly
       const result = await checkCandidateEmailExistsCallable({
         email: emailToCheck,
       });
       return {
         exists: result.data.exists,
-        claimedId: result.data.candidateId,
+        claimedId: result.data.candidateId, // This might be the UID if it exists
       };
     } catch (err) {
       console.error("Error in checkIfCandidateExists:", err);
       error.value = err.message || "Error checking email existence.";
-      throw err; // Re-throw for component to handle
-    } finally {
-      loading.value = false;
-    }
-  };
-
-  const register = async (
-    candidateEmail,
-    candidatePassword,
-    name,
-    phone,
-    resumeUrl = ""
-  ) => {
-    loading.value = true;
-    error.value = null;
-    try {
-      const result = await registerCandidateCallable({
-        email: candidateEmail,
-        password: candidatePassword,
-        name,
-        phone,
-        resumeUrl,
-      });
-      if (result.data.success && result.data.candidate) {
-        candidate.value = result.data.candidate;
-      } else {
-        throw new Error(
-          result.data.message || "Registration failed to return candidate data."
-        );
-      }
-      return result.data;
-    } catch (err) {
-      console.error("Error in register:", err);
-      error.value = err.message || "Could not register candidate.";
       throw err;
     } finally {
       loading.value = false;
     }
-  };
-
-  const login = async (candidateEmail, candidatePassword, claimedId) => {
-    loading.value = true;
-    error.value = null;
-    try {
-      const result = await signInCandidateCallable({
-        claimedId,
-        email: candidateEmail,
-        password: candidatePassword,
-      });
-      if (result.data.success && result.data.candidate) {
-        candidate.value = result.data.candidate;
-      } else {
-        throw new Error(
-          result.data.message || "Login failed to return candidate data."
-        );
-      }
-      return result.data;
-    } catch (err) {
-      console.error("Error in login:", err);
-      error.value = err.message || "Could not log in.";
-      throw err;
-    } finally {
-      loading.value = false;
-    }
-  };
-
-  const logout = () => {
-    candidate.value = null;
-
-    applicationsList.value = [];
-    applicationsError.value = null;
-    isLoadingApplications.value = false; // Reset loading state
-
-    console.log(
-      "Candidate logged out and data cleared from store/localStorage."
-    );
-    router.push({ name: "CandidateLogin" });
   };
 
   const fetchMyApplications = async () => {
-    // Ensure candidate is loaded and has an ID and the applications array
-    if (!candidate.value?.id) {
+    if (!isAuthenticated.value || !candidateProfile.value?.applications?.length) {
       applicationsList.value = [];
-      console.log(
-        "No candidate logged in or no application IDs found to fetch."
-      );
-      router.push("CandidateLogin");
-    } else if (!candidate.value.applications?.length) {
-      applicationsList.value = [];
+      if (!isAuthenticated.value && router.currentRoute.value.meta.requiresAuth) {
+          console.log("User not authenticated as candidate or no applications to fetch.");
+      }
       return;
     }
 
@@ -190,7 +236,7 @@ export const useCandidateAuthStore = defineStore("candidate-auth", () => {
 
     try {
       const appResult = await findApplicationsCallable({
-        applicationIds: candidate.value.applications,
+        applicationIds: candidateProfile.value.applications,
       });
 
       if (!appResult.data.success) {
@@ -198,94 +244,57 @@ export const useCandidateAuthStore = defineStore("candidate-auth", () => {
           appResult.data.message || "Failed to fetch application documents"
         );
       }
-      const rawApplications = appResult.data.applications;
+      const rawApplications = appResult.data.applications || [];
 
-      if (!rawApplications || rawApplications.length === 0) {
+
+      if (rawApplications.length === 0) {
         applicationsList.value = [];
         isLoadingApplications.value = false;
         return;
       }
 
-      const jobIds = [
-        ...new Set(
-          rawApplications.map((app) => app.jobID).filter((id) => !!id)
-        ),
-      ];
-      const orgIds = [
-        ...new Set(
-          rawApplications.map((app) => app.orgID).filter((id) => !!id)
-        ),
-      ];
+      // ... (rest of the fetching and mapping logic for job/org details remains the same)
+      const jobIds = [...new Set(rawApplications.map((app) => app.jobID).filter(Boolean))];
+      const orgIds = [...new Set(rawApplications.map((app) => app.orgID).filter(Boolean))];
 
-      const jobDetailsPromises =
-        jobIds.length > 0
-          ? jobIds.map((jobId) =>
-              getJobDetailsCallable({ jobId }).catch((e) => {
-                console.warn(`Failed to fetch job details for ${jobId}:`, e);
-                return {
-                  data: {
-                    success: false,
-                    job: { id: jobId, jobTitle: "Details Unavailable" },
-                  },
-                };
-              })
-            )
-          : [];
-
-      const orgDetailsPromises =
-        orgIds.length > 0
-          ? orgIds.map((orgId) =>
-              getOrgDetailsCallable({ orgId }).catch((e) => {
-                console.warn(`Failed to fetch org details for ${orgId}:`, e);
-                return {
-                  data: {
-                    success: false,
-                    organization: {
-                      id: orgId,
-                      companyName: "Details Unavailable",
-                    },
-                  },
-                };
-              })
-            )
-          : [];
+      const jobDetailsPromises = jobIds.map(jobId =>
+        getJobDetailsCallable({ jobId }).catch(e => {
+          console.warn(`Failed to fetch job details for ${jobId}:`, e);
+          return { data: { success: false, job: { id: jobId, jobTitle: "Details Unavailable" }}};
+        })
+      );
+      const orgDetailsPromises = orgIds.map(orgId =>
+        getOrgDetailsCallable({ orgId }).catch(e => {
+          console.warn(`Failed to fetch org details for ${orgId}:`, e);
+          return { data: { success: false, organization: { id: orgId, companyName: "Details Unavailable" }}};
+        })
+      );
 
       const [jobDetailsResults, orgDetailsResults] = await Promise.all([
         Promise.all(jobDetailsPromises),
         Promise.all(orgDetailsPromises),
       ]);
 
-      // 4. Create maps for quick lookup
       const jobsMap = new Map();
-      jobDetailsResults.forEach((res) => {
-        if (res.data.success && res.data.job)
-          jobsMap.set(res.data.job.id, res.data.job);
-        else if (res.data.job) jobsMap.set(res.data.job.id, res.data.job); // Store even if success is false but job object is there
+      jobDetailsResults.forEach(res => {
+        if (res.data.job) jobsMap.set(res.data.job.id, res.data.job);
       });
 
       const orgsMap = new Map();
-      orgDetailsResults.forEach((res) => {
-        if (res.data.success && res.data.organization)
-          orgsMap.set(res.data.organization.id, res.data.organization);
-        else if (res.data.organization)
-          orgsMap.set(res.data.organization.id, res.data.organization);
+      orgDetailsResults.forEach(res => {
+        if (res.data.organization) orgsMap.set(res.data.organization.id, res.data.organization);
       });
 
-      applicationsList.value = rawApplications.map((app) => {
-        const jobInfo = jobsMap.get(app.jobID);
-        const orgInfo = orgsMap.get(app.orgID);
-        return {
-          ...app,
-          jobTitle: jobInfo?.jobTitle || "Job Title Not Available",
-          companyName: orgInfo?.companyName || "Company Not Available",
-          orgID: app.orgID,
-          jobID: app.jobID,
-        };
-      });
-    } catch (error) {
-      console.error("Error fetching candidate applications details:", error);
+      applicationsList.value = rawApplications.map((app) => ({
+        ...app,
+        jobTitle: jobsMap.get(app.jobID)?.jobTitle || "Job Title Not Available",
+        companyName: orgsMap.get(app.orgID)?.companyName || "Company Not Available",
+      }));
+
+    } catch (err) {
+      console.error("Error fetching candidate applications details:", err);
       applicationsError.value =
-        error.message ||
+        err.message ||
         "An unexpected error occurred while fetching your applications.";
       applicationsList.value = [];
     } finally {
@@ -294,18 +303,26 @@ export const useCandidateAuthStore = defineStore("candidate-auth", () => {
   };
 
   return {
-    candidate,
+    // State
+    candidate, 
+    candidateProfile, 
     loading,
-    initLoading,
     error,
+    applicationsList,
+    isLoadingApplications,
+    applicationsError,
+
+    isAuthenticated,
+    currentCandidate,
+
+    initialize, 
     register,
     login,
     logout,
     checkIfCandidateExists,
-    initialize,
-    applicationsList,
-    isLoadingApplications,
-    applicationsError,
     fetchMyApplications,
+    fetchCandidateProfile, 
+    clearError,
+    resetState,
   };
 });

@@ -111,12 +111,12 @@ router.beforeEach(async (to, from, next) => {
 
   // 3. Route Guard Logic
   // Check for regular user (employer/recruiter) authentication
-  if (to.meta.requiresAuth && !authStore.user) {
+  if (to.meta.requiresAuth && !authStore.isAuthenticated) {
     console.log("Router Guard: User not authenticated, redirecting to /login");
     next({ name: "UserLogin", query: { redirect: to.fullPath } }); // so you can do query.redirect and get to.fullPath in string form
   }
   // Check for candidate authentication (for routes like ApplicationDetails)
-  else if (to.meta.requiresCandidateAuth && !candidateAuthStore.candidate) {
+  else if (to.meta.requiresCandidateAuth && !candidateAuthStore.isAuthenticated) {
     console.log(
       "Router Guard: Candidate not authenticated for ApplicationDetails, redirecting to CandidateLogin"
     );
@@ -132,7 +132,7 @@ router.beforeEach(async (to, from, next) => {
   // Check for candidate authentication for routes without specific job/org params
   else if (
     to.meta.requiresCandidateAuthNoParams &&
-    !candidateAuthStore.candidate
+    !candidateAuthStore.isAuthenticated
   ) {
     console.log(
       "Router Guard: Candidate not authenticated, redirecting to CandidateLogin"

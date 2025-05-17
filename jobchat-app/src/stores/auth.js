@@ -25,14 +25,20 @@ export const useAuthStore = defineStore("auth", () => {
   // State
   const functions = getFunctions(app);
   const user = ref(null);
+  const userProfile = ref(null);
   const loading = ref(true);
   const error = ref(null);
   const orgs = ref([]);
   const selectedOrg = ref(null);
   const lastSelectedOrgId = ref(null); // Keep track of last selected org
 
+  const getUserProfileCallable = httpsCallable(
+    functions,
+    "getUserProfile" // Example name for your Cloud Function
+  );
+
   // Computed Properties
-  const isAuthenticated = computed(() => !!user.value);
+  const isAuthenticated = computed(() => !!user.value && !!userProfile.value);
   const hasOrgs = computed(() => orgs.value.length > 0);
   const currentOrg = computed(() => selectedOrg.value);
 
@@ -41,6 +47,7 @@ export const useAuthStore = defineStore("auth", () => {
    */
   const resetState = () => {
     user.value = null;
+    userProfile.value = null;
     orgs.value = [];
     selectedOrg.value = null;
     error.value = null;
@@ -52,6 +59,28 @@ export const useAuthStore = defineStore("auth", () => {
    */
   const clearError = () => {
     error.value = null;
+  };
+
+  const fetchUserProfile = async (uid) => {
+    if (!uid) {
+      userProfile.value = null;
+      return;
+    }
+    try {
+      const result = await getUserProfileCallable({ uid });
+      if (result.data.success && result.data.user) {
+        userProfile.value = result.data.user;
+      } else {
+        console.warn(
+          `Hiring Manager profile not found for UID ${uid}:`,
+          result.data.message || "Profile does not exist."
+        );
+        userProfile.value = null; // Explicitly set to null
+      }
+    } catch (err) {
+      console.error("Error fetching Hiring Manager profile:", err);
+      userProfile.value = null; // Ensure profile is null on error
+    }
   };
 
   /**
@@ -88,9 +117,12 @@ export const useAuthStore = defineStore("auth", () => {
    */
   const fetchUserOrgs = async (forceRefresh = false) => {
     try {
-      if (!user.value?.email) {
+      console.log("user", user.value);
+      console.log("userProfile", userProfile.value);
+      if (!isAuthenticated.value || !user.value?.uid) { // Check isAuthenticated
         orgs.value = [];
         selectedOrg.value = null;
+        console.log("Cannot fetch orgs: User is not authenticated as a Hiring Manager or UID is missing.");
         return;
       }
       // If we already have orgs and no force refresh, skip
@@ -145,6 +177,8 @@ export const useAuthStore = defineStore("auth", () => {
           try {
             if (firebaseUser) {
               user.value = firebaseUser;
+              console.log(user.value);
+              await fetchUserProfile(user.value.uid);
               await fetchUserOrgs();
             } else {
               resetState();
@@ -205,6 +239,12 @@ export const useAuthStore = defineStore("auth", () => {
 
       await signInWithEmailAndPassword(auth, email, password);
       // Auth state change will trigger fetchUserOrgs
+      await fetchUserProfile(user.value.uid);
+      if (!userProfile.value) {
+        error.value = "Login failed: This account is not registered as a user or the profile is missing.";
+        await signOut(auth);
+        throw new Error(error.value);
+      }
     } catch (err) {
       console.error("Error logging in:", err);
       error.value = err.message;

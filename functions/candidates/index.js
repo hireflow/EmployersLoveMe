@@ -1,7 +1,6 @@
 const { onCall } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const { HttpsError } = require("firebase-functions/v2/https");
-const bcrypt = require('bcrypt');
 
 
 exports.checkCandidateEmailExists = onCall(async (request) => {
@@ -42,29 +41,25 @@ exports.checkCandidateEmailExists = onCall(async (request) => {
     }
 });
 
-exports.registerCandidate = onCall(async (request) => {
-  const { email, password, resumeUrl, name, phone } = request.data;
+exports.setCandidateProfile = onCall(async (request) => {
+  const { uid, email, resumeUrl, name, phone, applications } = request.data;
 
   // Validate inputs
-  if (!email || !password || !name) {
+  if (!uid || !email || !name) {
     throw new HttpsError(
       "invalid-argument",
-      "Missing required fields: email, password, and name are required."
+      "Missing required fields: id, name, and email are required."
     );
   }
 
   try {
 
-    // Hash the password
-    const saltRounds = 10;
-    const hashedPassword = await bcrypt.hash(password, saltRounds);
-
     // Create candidate document
     const candidateData = {
       email,
-      password: hashedPassword,
       name,
       resumeUrl: resumeUrl || "",
+      applications: applications || [],
       phone: phone || "",
       createdAt: admin.firestore.FieldValue.serverTimestamp(),
       updatedAt: admin.firestore.FieldValue.serverTimestamp()
@@ -73,19 +68,10 @@ exports.registerCandidate = onCall(async (request) => {
     // Add to Firestore
     const candidatesRef = admin.firestore().collection('candidates');
 
-    const docRef = await candidatesRef.add(candidateData);
-    
-    // Get the created document (without password)
-    const candidateDoc = await docRef.get();
-    const candidate = candidateDoc.data();
-    delete candidate.password; // Remove password from the response
-    
+    await candidatesRef.doc(uid).set(candidateData);
+
     return {
       success: true,
-      candidate: {
-        ...candidate,
-        id: docRef.id
-      }
     };
   } catch (error) {
     console.error('Error registering candidate:', error);
@@ -101,62 +87,38 @@ exports.registerCandidate = onCall(async (request) => {
   }
 });
 
-exports.signInCandidate = onCall(async (request) => {
-    const { claimedId, email, password } = request.data;
+exports.getCandidateProfile = onCall(async (request) => {
+    const { uid } = request.data;
   
     // Validate inputs
-    if (!claimedId || !email || !password) {
+    if (!uid) {
       throw new HttpsError(
         "invalid-argument",
-        "Missing required fields: candidateId and email and password are required."
+        "Missing required fields: candidateId."
       );
     }
   
     try {
-      // Get candidate directly by ID
-      const candidateRef = admin.firestore().collection('candidates').doc(claimedId);
+      const candidateRef = admin.firestore().collection('candidates').doc(uid);
       const candidateDoc = await candidateRef.get();
       
       // Check if candidate exists
       if (!candidateDoc.exists) {
-        throw new HttpsError(
-          "not-found",
-          "No candidate found with this ID."
-        );
+        return {
+          success: false,
+          candidate: null
+        };
       }
       
       const candidateData = candidateDoc.data();
       
-      if (email && candidateData.email !== email) {
-        throw new HttpsError(
-          "permission-denied",
-          "Invalid credentials."
-        );
-      }
-      
-      // Verify password
-      const passwordMatches = await bcrypt.compare(password, candidateData.password);
-      
-      if (!passwordMatches) {
-        throw new HttpsError(
-          "permission-denied",
-          "Invalid credentials."
-        );
-      }
-      
-      // Create a response object without the password
-      const candidate = { ...candidateData};
-      delete candidate.password;
       
       return {
         success: true,
-        candidate: {
-          ...candidate,
-          id: candidateDoc.id
-        }
+        candidate: candidateData
       };
     } catch (error) {
-      console.error('Error signing in candidate:', error);
+      console.error('Error fetching candidate:', error);
       
       if (error instanceof HttpsError) {
         throw error;
@@ -164,7 +126,7 @@ exports.signInCandidate = onCall(async (request) => {
       
       throw new HttpsError(
         "internal",
-        "Error signing in candidate."
+        "Error fetching candidate."
       );
     }
   
