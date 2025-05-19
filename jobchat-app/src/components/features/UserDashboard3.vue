@@ -1,4 +1,5 @@
 <script setup>
+/*eslint-disable*/ 
 import { useAuthStore } from "@/stores/auth";
 // import { useRouter } from "vue-router";
 import { getFunctions, httpsCallable } from "firebase/functions";
@@ -306,7 +307,7 @@ const fetchJobs = async () => {
               </button>
               <RouterLink 
                 to="`/${authStore?.selectedOrg?.id}/${job.id}`" 
-                class="btn btn-outline btn-sm">
+                class="btn btn-outline2 btn-sm">
                 View Jobs
               </RouterLink>
             </div>
@@ -700,6 +701,12 @@ const fetchJobs = async () => {
   background-color: transparent;
   color: #e53e3e;
   border: 1px solid #e53e3e;
+}
+
+.btn-outline2 {
+  background-color: transparent;
+  color: rgb(10, 200, 10);
+  border: 1px solid #00d953;
 }
 
 .btn-outline:hover {

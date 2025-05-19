@@ -126,7 +126,7 @@ html, body, #app {
 .layout-container {
   display: flex;
   min-height: 100vh;
-  background-color: #f5f5f5;
+  background-color: #f1f5fa;
   position: relative; /* This helps with positioning absolute elements inside */
 }
 
@@ -135,6 +135,7 @@ html, body, #app {
   width: 260px;
   /* min-width: 260px; Prevent sidebar from shrinking */
   background-color: #6fcaff;
+  /* background-color: #6fa7ff; */
   border-right: 1px solid #e0e0e0;
   display: flex;
   flex-direction: column;
