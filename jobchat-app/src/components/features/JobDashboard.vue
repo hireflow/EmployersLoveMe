@@ -2,17 +2,19 @@
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { watch, onMounted, ref, defineAsyncComponent } from "vue";
 import { useAuthStore } from "@/stores/auth";
+import { useRoute } from "vue-router";
 import LoadingSpinner from "@/components/ui/LoadingSpinner.vue";
 import ErrorBoundary from "@/components/ui/ErrorBoundary.vue";
+import SideBarLayout from "../layouts/SideBarLayout.vue";
 
 const authStore = useAuthStore();
+const route = useRoute();
 const functions = getFunctions();
 
 const getJobsByOrgId = httpsCallable(functions, "getJobsByOrgId");
-const createJobCallable = httpsCallable(functions, "createJob"); // Renamed for clarity
-const updateJobByIdCallable = httpsCallable(functions, "updateJobById"); // Renamed for clarity
-const deleteJobByIdCallable = httpsCallable(functions, "deleteJobById"); // Renamed for clarity
-
+const createJobCallable = httpsCallable(functions, "createJob");
+const updateJobByIdCallable = httpsCallable(functions, "updateJobById");
+const deleteJobByIdCallable = httpsCallable(functions, "deleteJobById");
 
 const jobs = ref([]);
 const showJobForm = ref(false);
@@ -22,6 +24,7 @@ const selectedJob = ref(null);
 const errorMessage = ref("");
 const successMessage = ref("");
 const showDeleteConfirmation = ref(false);
+const currentOrgId = ref(null);
 
 const formatTimestamp = (timestampInput) => {
   if (!timestampInput) return "N/A";
@@ -60,15 +63,15 @@ const formatTimestamp = (timestampInput) => {
 
 const fetchJobs = async () => {
   try {
-    if (!authStore.selectedOrg?.id) {
+    if (!currentOrgId.value) {
       jobs.value = []; // Clear jobs if no org is selected
       return;
     }
 
-    console.log("Fetching jobs for org:", authStore.selectedOrg.id);
+    console.log("Fetching jobs for org:", currentOrgId.value);
     errorMessage.value = ""; // Clear previous errors
     const result = await getJobsByOrgId({
-      orgId: authStore.selectedOrg.id,
+      orgId: currentOrgId.value,
     });
     console.log("Raw result from getJobsByOrgId:", result);
 
@@ -109,7 +112,7 @@ const deleteJob = async () => {
       return;
     }
     
-    if (!authStore.selectedOrg?.id) {
+    if (!currentOrgId.value) {
       console.log("No organization selected");
       errorMessage.value = "Organization information is missing";
       return;
@@ -119,11 +122,11 @@ const deleteJob = async () => {
     successMessage.value = "";
 
     console.log("Deleting job with ID:", selectedJob.value.id);
-    console.log("From organization ID:", authStore.selectedOrg.id);
+    console.log("From organization ID:", currentOrgId.value);
     
     const payload = {
       jobId: selectedJob.value.id,
-      orgId: authStore.selectedOrg.id,
+      orgId: currentOrgId.value,
     };
 
     console.log("Payload for deleteJobById:", payload);
@@ -148,21 +151,18 @@ const deleteJob = async () => {
 };
 
 watch(
-  () => authStore.selectedOrg?.id,
-  (newId) => {
-    if (newId) {
-      console.log("Selected org changed to:", newId, "Fetching jobs.");
+  () => route.params.orgId,
+  (newOrgId) => {
+    if (newOrgId) {
+      currentOrgId.value = newOrgId;
       fetchJobs();
-    } else {
-      console.log("Selected org cleared. Clearing jobs.");
-      jobs.value = [];
     }
   },
   { immediate: true }
 );
 
 onMounted(() => {
-  if (authStore.selectedOrg?.id && jobs.value.length === 0) {
+  if (currentOrgId.value && jobs.value.length === 0) {
     // Fetch only if org selected and jobs not already loaded
     console.log("Component mounted with selected org. Fetching jobs.");
     fetchJobs();
@@ -182,8 +182,8 @@ const createNewJob = async (formData) => {
     }
 
     const payload = {
-      orgId: authStore.selectedOrg.id,
-      hiringManagerIds: [authStore.user.uid], // Ensure authStore.user.uid is available
+      orgId: currentOrgId.value,
+      hiringManagerIds: [authStore.user.uid],
       ...formData,
     };
     console.log("Payload for createJob:", payload);
@@ -355,13 +355,14 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
 </script>
 
 <template>
-  <div class="job-dashboard">
+  <SideBarLayout>
+    <div class="job-dashboard">
     <div class="dashboard-header">
-      <h1>Jobs for {{ authStore.selectedOrg?.name || "your organization" }}</h1>
+      <h1>Jobs for {{ authStore.orgs.find(org => org.id === currentOrgId)?.companyName || "your organization" }}</h1>
       <button
         @click="toggleJobForm"
         class="create-button"
-        :disabled="!authStore.selectedOrg?.id"
+        :disabled="!currentOrgId"
       >
         {{ showJobForm ? "Cancel" : "Create New Job" }}
       </button>
@@ -395,7 +396,7 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
       <div v-if="!showJobForm" class="jobs-section">
         <div class="section-header">
           <h2>Current Jobs</h2>
-          <p v-if="!authStore.selectedOrg?.id" class="no-jobs-message">
+          <p v-if="!currentOrgId" class="no-jobs-message">
             Please select an organization to see jobs.
           </p>
           <p
@@ -408,7 +409,7 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
 
         <div
           class="jobs-grid"
-          v-if="authStore.selectedOrg?.id && jobs.length > 0"
+          v-if="currentOrgId && jobs.length > 0"
         >
           <div v-for="job in jobs" :key="job.id" class="job-card">
             <div class="job-card-header">
@@ -512,7 +513,7 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
 
               <div>
                 {{
-                  `http://localhost:8080/applications/${authStore?.selectedOrg?.id}/${job.id}`
+                  `http://localhost:8080/applications/${currentOrgId}/${job.id}`
                 }}
               </div>
             </div>
@@ -588,6 +589,7 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
       </div>
     </div>
   </div>
+  </SideBarLayout>
 </template>
 
 <style scoped>

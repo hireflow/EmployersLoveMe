@@ -1,11 +1,9 @@
 <script setup>
-
-
 import { useAuthStore } from "@/stores/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { ref, computed } from "vue";
 import { RouterLink } from 'vue-router';
-import JobDashboard from "./JobDashboard.vue";
+// import JobDashboard from "./JobDashboard.vue";
 import SideBarLayout from "../layouts/SideBarLayout.vue";
 
 const authStore = useAuthStore();
@@ -252,7 +250,7 @@ const toggleForm = () => {
                 Delete
               </button>
               <RouterLink 
-                to="`/${authStore?.selectedOrg?.id}/${job.id}`" 
+                :to="`/${org.id}/jobs`" 
                 class="btn btn-outline2 btn-sm">
                 View Jobs
               </RouterLink>
@@ -365,7 +363,7 @@ const toggleForm = () => {
         </div>
       </div>
 
-      <JobDashboard v-if="authStore.selectedOrg" />
+      <!-- <JobDashboard v-if="authStore.selectedOrg" /> -->
 
       <!-- Delete Confirmation Modal -->
       <div v-if="showDeleteConfirmation" class="modal-overlay">

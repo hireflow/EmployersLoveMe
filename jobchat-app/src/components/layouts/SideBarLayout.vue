@@ -49,6 +49,12 @@ const logoutAction = async () => {
           </RouterLink>
         </div>
 
+        <!-- <div class="sidebar-section">
+          <RouterLink to="" class="section-title">
+            Jobs
+          </RouterLink>
+        </div> -->
+
         <div class="sidebar-section">
           <RouterLink to="/candidate-login" class="section-title">
             Candidate Login
