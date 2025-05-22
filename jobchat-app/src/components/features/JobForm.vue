@@ -1,118 +1,118 @@
-  <template>
-    <div class="job-form">
-      <h2>Create New Job</h2>
-      <form @submit.prevent="$emit('submit', formData)" class="form-grid">
-        <div class="form-group">
-          <label>Basic Information</label>
-          <input
-            type="text"
-            v-model="formData.jobTitle"
-            placeholder="Job Title"
-            required
-          />
-          <input
-            type="text"
-            v-model="formData.jobDepartment"
-            placeholder="Job Department"
-            required
-          />
-          <textarea
-            v-model="formData.jobDescription"
-            placeholder="Job Description"
-            required
-          ></textarea>
-          <input
-            type="text"
-            v-model="formData.teamSize"
-            placeholder="Team Size"
-            required
-          />
-        </div>
+<template>
+  <div class="job-form">
+    <h2>Create New Job</h2>
+    <form @submit.prevent="$emit('submit', formData)" class="form-grid">
+      <div class="form-group">
+        <label>Basic Information</label>
+        <input
+          type="text"
+          v-model="formData.jobTitle"
+          placeholder="Job Title"
+          required
+        />
+        <input
+          type="text"
+          v-model="formData.jobDepartment"
+          placeholder="Job Department"
+          required
+        />
+        <textarea
+          v-model="formData.jobDescription"
+          placeholder="Job Description"
+          required
+        ></textarea>
+        <input
+          type="text"
+          v-model="formData.teamSize"
+          placeholder="Team Size"
+          required
+        />
+      </div>
 
-        <div class="form-group">
-          <label>Location & Compensation</label>
-          <input
-            type="text"
-            v-model="formData.jobLocation"
-            placeholder="Job Location"
-            required
-          />
-          <input
-            type="text"
-            v-model="formData.jobSalary"
-            placeholder="Salary Range"
-            required
-          />
-          <input
-            type="text"
-            v-model="formData.jobType"
-            placeholder="Employment Type (e.g., Full-time, Part-time)"
-            required
-          />
-          <input
-            type="date"
-            v-model="formData.applicationDeadline"
-            placeholder="Application Deadline"
-            required
-          />
-          <textarea
-            v-model="formData.travelRequirements"
-            placeholder="Travel Requirements"
-          ></textarea>
-        </div>
+      <div class="form-group">
+        <label>Location & Compensation</label>
+        <input
+          type="text"
+          v-model="formData.jobLocation"
+          placeholder="Job Location"
+          required
+        />
+        <input
+          type="text"
+          v-model="formData.jobSalary"
+          placeholder="Salary Range"
+          required
+        />
+        <input
+          type="text"
+          v-model="formData.jobType"
+          placeholder="Employment Type (e.g., Full-time, Part-time)"
+          required
+        />
+        <input
+          type="date"
+          v-model="formData.applicationDeadline"
+          placeholder="Application Deadline"
+          required
+        />
+        <textarea
+          v-model="formData.travelRequirements"
+          placeholder="Travel Requirements"
+        ></textarea>
+      </div>
 
-        <div class="form-group">
-          <label>Requirements & Skills</label>
-          <textarea
-            v-model="formData.requiredSkills"
-            placeholder="Required Skills"
-            required
-          ></textarea>
-          <textarea
-            v-model="formData.preferredSkills"
-            placeholder="Preferred Skills"
-          ></textarea>
-          <input
-            type="text"
-            v-model="formData.requiredEducation"
-            placeholder="Education Requirements"
-            required
-          />
-          <input
-            type="text"
-            v-model="formData.requiredCertifications"
-            placeholder="Required Certifications"
-          />
-          <textarea
-            v-model="formData.techStack"
-            placeholder="Technical Stack Requirements"
-          ></textarea>
-        </div>
+      <div class="form-group">
+        <label>Requirements & Skills</label>
+        <textarea
+          v-model="formData.requiredSkills"
+          placeholder="Required Skills"
+          required
+        ></textarea>
+        <textarea
+          v-model="formData.preferredSkills"
+          placeholder="Preferred Skills"
+        ></textarea>
+        <input
+          type="text"
+          v-model="formData.requiredEducation"
+          placeholder="Education Requirements"
+          required
+        />
+        <input
+          type="text"
+          v-model="formData.requiredCertifications"
+          placeholder="Required Certifications"
+        />
+        <textarea
+          v-model="formData.techStack"
+          placeholder="Technical Stack Requirements"
+        ></textarea>
+      </div>
 
-        <div class="form-group">
-          <label>Process & Resources</label>
-          <textarea
-            v-model="formData.interviewStages"
-            placeholder="Interview Process Stages"
-            required
-          ></textarea>
-          <textarea
-            v-model="formData.candidateResourceLinks"
-            placeholder="Additional Resources for Candidates (comma-separated links)"
-          ></textarea>
-        </div>
+      <div class="form-group">
+        <label>Process & Resources</label>
+        <textarea
+          v-model="formData.interviewStages"
+          placeholder="Interview Process Stages"
+          required
+        ></textarea>
+        <textarea
+          v-model="formData.candidateResourceLinks"
+          placeholder="Additional Resources for Candidates (comma-separated links)"
+        ></textarea>
+      </div>
 
-        <div class="form-actions">
-          <button type="button" @click="$emit('cancel')" class="cancel-button">
-            Cancel
-          </button>
-          <button type="submit" class="submit-button">Create Job</button>
-        </div>
-      </form>
-    </div>
-  </template>
+      <div class="form-actions">
+        <button type="button" @click="$emit('cancel')" class="cancel-button">
+          Cancel
+        </button>
+        <button type="submit" class="submit-button">Create Job</button>
+      </div>
+    </form>
+  </div>
+</template>
 
-  <script setup>
+<script setup>
   import { reactive } from "vue";
 
   const formData = reactive({
@@ -133,9 +133,9 @@
     interviewStages: "",
     candidateResourceLinks: "",
   });
-  </script>
+</script>
 
-  <style scoped>
+<style scoped>
   .job-form {
     background: white;
     padding: 2rem;
@@ -210,4 +210,4 @@
   .cancel-button:hover {
     background-color: #da190b;
   }
-  </style>
+</style>

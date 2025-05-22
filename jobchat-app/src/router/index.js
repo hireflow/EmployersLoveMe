@@ -18,6 +18,12 @@ const routes = [
     redirect: "/dashboard", // TO-DO REDIRECT TO LANDING PAGE
   },
   {
+    path: "/:orgId/jobs",
+    name: "JobDashboard",
+    component: () => import("@/components/features/JobDashboard.vue"),
+    meta: { requiresAuth: true },
+  },
+  {
     path: "/dashboard",
     name: "UserDashboard",
     component: () => import("@/components/features/UserDashboard.vue"),
