@@ -86,7 +86,6 @@ export const useCandidateAuthStore = defineStore("candidate-auth", () => {
           loading.value = true;
           if (firebaseUser) {
             candidate.value = firebaseUser;
-            await fetchCandidateProfile(firebaseUser.uid); // This sets candidateProfile.value
             if (isAuthenticated.value && candidateProfile.value?.applications?.length) {
                 await fetchMyApplications();
             } else if (!candidateProfile.value) {
@@ -152,6 +151,7 @@ export const useCandidateAuthStore = defineStore("candidate-auth", () => {
         resumeUrl,
         applications: [], // Initialize with empty applications
       });
+      await fetchCandidateProfile(firebaseUser.uid);
       // The function resolves successfully if Firebase user is created and profile creation is initiated.
       return { success: true, uid: firebaseUser.uid };
     } catch (err) {
