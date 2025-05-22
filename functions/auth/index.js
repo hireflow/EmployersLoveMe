@@ -77,35 +77,28 @@ exports.addOrganizationToUser = onCall(async (request) => {
   }
 });
 
-exports.signIn = onCall(async (request) => {
-  const data = request.data;
-  if (!data.email) {
-    throw new HttpsError("invalid-argument", "Email is required.");
+exports.getUserProfile = onCall(async (request) => {
+  const { uid } = request.data;
+  if (!uid) {
+    throw new HttpsError("invalid-argument", "userid is required.");
   }
 
   try {
-    const userRecord = await admin.auth().getUserByEmail(data.email);
-
-    // Get user's additional data from Firestore
-    const userDoc = await admin
-      .firestore()
-      .collection("users")
-      .doc(userRecord.uid)
-      .get();
+    const userRef = admin.firestore().collection("users").doc(uid);
+    userDoc = await userRef.get();
 
     if (!userDoc.exists) {
-      throw new HttpsError("not-found", "User profile not found");
+      return {
+        success: false,
+        user: null,
+      };
     }
 
     const userData = userDoc.data();
 
     return {
       success: true,
-      user: {
-        ...(userData || {}),
-        uid: userRecord.uid,
-        email: userRecord.email,
-      },
+      user: userData,
     };
   } catch (error) {
     throw new HttpsError("internal", error.message);

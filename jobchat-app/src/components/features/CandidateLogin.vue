@@ -17,10 +17,8 @@ const loginError = ref("");
 const registrationError = ref("");
 const isRegistering = ref(true);
 const showRegistrationForm = ref(false); // Control visibility of registration fields
-const claimedId = ref(null);
 
 const checkExistingCandidate = async () => {
-  isExistingCandidateCheck.value = true;
   existingCandidateError.value = "";
   showRegistrationForm.value = false; // Hide registration form initially
 
@@ -28,17 +26,14 @@ const checkExistingCandidate = async () => {
     const result = await candidateAuthStore.checkIfCandidateExists(email.value);
     const exists = result.exists;
     if (exists) {
+      isExistingCandidateCheck.value = true;
       isRegistering.value = false; // Show login form
-      claimedId.value = result.claimedId;
     } else {
       isRegistering.value = true; // Prepare for registration
       showRegistrationForm.value = true; // Show registration fields
-      console.log("here");
     }
   } catch (error) {
     existingCandidateError.value = error.message || "Error checking email.";
-  } finally {
-    isExistingCandidateCheck.value = false;
   }
 };
 
@@ -76,19 +71,15 @@ const handleLogin = async () => {
     loginError.value = "Please enter your email and password.";
     return;
   }
-
   try {
     await candidateAuthStore.login(
       email.value,
       password.value,
-      claimedId.value
     );
+    email.value = "";
+    password.value = "";
     if (candidateAuthStore.candidate) {
-      claimedId.value = null;
       redirectToApplicationDetailsOrDashboard();
-    } else {
-      claimedId.value = null;
-      loginError.value = "Login failed.";
     }
   } catch (error) {
     loginError.value = error.message || "Login failed.";
@@ -115,7 +106,7 @@ const redirectToApplicationDetailsOrDashboard = () => {
       <input type="email" v-model="email" placeholder="Enter your email" />
       <button
         @click="checkExistingCandidate"
-        :disabled="isExistingCandidateCheck || candidateAuthStore.loading"
+        :disabled="isExistingCandidateCheck"
       >
         {{ isExistingCandidateCheck ? "Checking..." : "Continue" }}
       </button>
@@ -153,7 +144,7 @@ const redirectToApplicationDetailsOrDashboard = () => {
         {{ candidateAuthStore.loading ? "Logging in..." : "Login" }}
       </button>
       <p v-if="loginError">{{ loginError }}</p>
-      <button @click="isRegistering = false">
+      <button @click="isRegistering = true">
         Don't have an account? Register
       </button>
     </div>

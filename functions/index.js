@@ -28,7 +28,7 @@ exports.findOneOrManyApplicationsById =
 
 // Export auth functions
 exports.registerUser = authFunctions.registerUser;
-exports.signIn = authFunctions.signIn;
+exports.getUserProfile = authFunctions.getUserProfile;
 exports.addOrganizationToUser = authFunctions.addOrganizationToUser;
 
 // Export organization and job functions
@@ -45,8 +45,8 @@ exports.getPublicOrgDetails = orgFunctions.getPublicOrgDetails;
 // candidate functions
 exports.checkCandidateEmailExists =
   candidateFunctions.checkCandidateEmailExists;
-exports.signInCandidate = candidateFunctions.signInCandidate;
-exports.registerCandidate = candidateFunctions.registerCandidate;
+exports.setCandidateProfile = candidateFunctions.setCandidateProfile;
+exports.getCandidateProfile = candidateFunctions.getCandidateProfile;
 
 // Example HTTP function
 exports.helloWorld = onRequest(
