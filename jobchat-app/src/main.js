@@ -13,6 +13,7 @@ import { createPinia } from "pinia";
 import router from "./router";
 import App from "./App.vue";
 import { motionPlugin } from "@oku-ui/motion";
+import '@/assets/tailwind.css'
 
 // Initialize Vue application
 const app = createApp(App);
