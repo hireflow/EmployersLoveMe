@@ -25,8 +25,8 @@ const routes = [
   },
   {
     path: "/dashboard",
-    name: "UserDashboard3",
-    component: () => import("@/components/features/UserDashboard3.vue"),
+    name: "UserDashboard",
+    component: () => import("@/components/features/UserDashboard.vue"),
     meta: { requiresAuth: true },
   },
   {

@@ -1,47 +1,9 @@
 <script setup>
 import { useAuthStore } from "@/stores/auth";
 import { useRouter } from "vue-router";
-// import { ref } from "vue";
 
 const authStore = useAuthStore();
 const router = useRouter();
-
-// Sample jobs data - replace with actual data source
-// const jobs = ref([]);
-
-// const onOrgChange = (e) => {
-//   const selected = authStore.orgs.find(org => org.id === e.target.value);
-//   if (selected) authStore.setSelectedOrg(selected);
-// };
-
-// const createOrgAction = () => {
-//   // Emit an event that the parent component can handle
-//   // For Dashboard2, we'll directly toggle the form
-//   router.push({ 
-//     path: '/dashboard',
-//     query: { action: 'createOrg' }
-//   });
-// };
-
-// const deleteOrgAction = () => {
-//   router.push({ 
-//     path: '/dashboard',
-//     query: { action: 'deleteOrg' }
-//   });
-// };
-
-// const createNewJobAction = () => {
-//   // Navigate to job creation form or trigger modal
-//   router.push({ 
-//     path: '/dashboard',
-//     query: { action: 'createJob' }
-//   });
-// };
-
-// const viewJobAction = (jobId) => {
-//   // Navigate to job details
-//   router.push(`/job/${jobId}`);
-// };
 
 const logoutAction = async () => {
   try {
@@ -51,8 +13,6 @@ const logoutAction = async () => {
     console.error("Logout error:", error);
   }
 };
-
-
 </script>
 
 
@@ -76,21 +36,30 @@ const logoutAction = async () => {
       <nav class="sidebar-nav">
         <!-- Organizations -->
         <div class="sidebar-section">
-          <h2 class="section-title">Organizations</h2>
-          <!-- <select 
-            :value="authStore.selectedOrg?.id" 
-            @change="onOrgChange"
-            class="org-select"
-          >
-            <option value="">Select an organization</option>
-            <option v-for="org in authStore.orgs" :key="org.id" :value="org.id">
-              {{ org.companyName }}
-            </option>
-          </select> -->
-        </div>      
+          <RouterLink to="/" class="section-title">
+            Organizations
+          </RouterLink>
+        </div>  
+
         <!-- Navigation Links -->
+        <!-- TODO: CREATE ARCHIVED PAGE TO TRACK ARCHIVED ORGANIZATIONS -->
         <div class="sidebar-section">
-          <h2 class="section-title">Archived</h2>
+          <RouterLink to="" class="section-title">
+            Archived
+          </RouterLink>
+        </div>
+
+        <div class="sidebar-section">
+          <RouterLink to="/candidate-login" class="section-title">
+            Candidate Login
+          </RouterLink>
+        </div>
+
+        <!-- TODO: CREATE APPLICATIONS PAGE TO TRACK ALL APPLICATIONS FOR JOB POSTING -->
+        <div class="sidebar-section">
+          <RouterLink to="" class="section-title">
+            Applications
+          </RouterLink>
         </div>
       </nav>
 
@@ -109,7 +78,7 @@ const logoutAction = async () => {
   
     <!-- Main content -->
     <main class="main-content">
-      <!-- Here goes whatever page you're rendering -->
+      <!-- Here goes whatever page is being rendered -->
       <slot />
     </main>
   </div>
@@ -133,7 +102,6 @@ html, body, #app {
 /* Sidebar Styles */
 .sidebar {
   width: 260px;
-  /* min-width: 260px; Prevent sidebar from shrinking */
   background-color: #6fcaff;
   /* background-color: #6fa7ff; */
   border-right: 1px solid #e0e0e0;

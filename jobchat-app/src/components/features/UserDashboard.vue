@@ -1,13 +1,14 @@
 <script setup>
+
+
 import { useAuthStore } from "@/stores/auth";
-import { useRouter } from "vue-router";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { ref, computed } from "vue";
+import { RouterLink } from 'vue-router';
 import JobDashboard from "./JobDashboard.vue";
 import SideBarLayout from "../layouts/SideBarLayout.vue";
 
 const authStore = useAuthStore();
-const router = useRouter();
 
 // Initialize Firebase Functions
 const functions = getFunctions();
@@ -26,13 +27,27 @@ const companyDescription = ref("");
 const missionStatement = ref("");
 
 const showDeleteConfirmation = ref(false);
-
-const deleteOrgByIdCallable = httpsCallable(functions, "deleteOrg"); // Renamed for clarity
+const deleteOrgByIdCallable = httpsCallable(functions, "deleteOrg");
 
 // Computed property to check if user is new (has no orgs)
 let isNewUser = computed(() => {
   return !authStore.loading && authStore.orgs.length === 0;
 });
+
+const selectOrg = async (org) => {
+  try {
+    await authStore.setSelectedOrg(org);
+    successMessage.value = `${org.companyName} is now your selected organization`;
+    
+    // Clear message after a short delay
+    setTimeout(() => {
+      successMessage.value = "";
+    }, 2000);
+  } catch (error) {
+    errorMessage.value = "Error selecting organization";
+    console.error("Error selecting organization:", error);
+  }
+};
 
 const handleCreateOrg = async () => {
   if (isSubmitting.value) return;
@@ -169,453 +184,487 @@ const toggleForm = () => {
   errorMessage.value = "";
   successMessage.value = "";
 };
-
-const handleLogout = async () => {
-  try {
-    await authStore.logout();
-    router.push("/login");
-  } catch (error) {
-    console.error("Logout error:", error);
-    errorMessage.value = "Failed to logout. Please try again.";
-  }
-};
 </script>
 
 <template>
+  <SideBarLayout>
+    <!-- Main Content Area -->
+    <div class="dashboard-container">
+      <!-- Page Header -->
+      <div class="page-header">
+        <h1 class="page-title">Organizations</h1>
+        <button @click="toggleForm" class="btn btn-primary add-btn">
+          + Add Organization
+        </button>
+      </div>
 
-<SideBarLayout >
-  <div class="dashboard-container">
-    <header class="dashboard-header">
-      <h1>Welcome, {{ authStore.user?.email }}</h1>
-      <button @click="handleLogout" class="logout-button">Logout</button>
-    </header>
-
-    <div v-if="errorMessage" class="error-message">
-      {{ errorMessage }}
-    </div>
-
-    <div v-if="successMessage" class="success-message">
-      {{ successMessage }}
-    </div>
-
-    <!-- Loading State -->
-    <div v-if="authStore.loading" class="loading-section">
-      <p>Loading...</p>
-    </div>
-
-    <!-- New User Welcome Section -->
-    <div v-else-if="isNewUser" class="welcome-section">
-      <h2>Welcome to JobChat! 🎉</h2>
-      <p>
-        Get started by creating your first organization to manage your hiring
-        process.
-      </p>
-      <button @click="toggleForm" class="primary-button">
-        Create Your First Organization
-      </button>
-    </div>
-
-    <!-- Delete Confirmation Modal -->
-    <div v-if="showDeleteConfirmation" class="modal-overlay">
-      <div class="confirmation-modal">
-        <div class="confirmation-header">
-          <h3>Confirm Deletion</h3>
+      <!-- Alerts Section -->
+      <div class="alerts-container">
+        <div v-if="errorMessage" class="alert alert-error">
+          <p>{{ errorMessage }}</p>
         </div>
-        <div class="confirmation-content">
-          <p>Are you sure you want to delete the organization: <strong>{{ authStore.selectedOrg?.companyName }}</strong>?</p>
-          <p class="warning-text">This action cannot be undone and will delete all jobs in the organization!</p>
-        </div>
-        <div class="confirmation-actions">
-          <button @click="closeDeleteConfirmation" class="secondary-button">
-            Cancel
-          </button>
-          <button @click="deleteOrg" class="secondary-button delete">
-            Delete
-          </button>
+        <div v-if="successMessage" class="alert alert-success">
+          <p>{{ successMessage }}</p>
         </div>
       </div>
-    </div>
 
-    <!-- Existing User Organization Section -->
-    <div v-else class="org-management-section">
-      <div class="section-header">
-        <h2>Your Organizations</h2>
-        <div class="button-group">
-          <button
-            v-if="authStore.selectedOrg?.id"
-            class="secondary-button delete"
-            @click="openDeleteConfirmation()"
-          >
-            Delete Organization
-          </button>
-          <button @click="toggleForm" class="secondary-button">
-            + New Organization
+      <!-- Loading Section -->
+      <div v-if="authStore.loading" class="loading-container">
+        <div class="loading-spinner"></div>
+      </div>
+
+      <!-- New User Welcome Section -->
+      <div v-else-if="isNewUser" class="welcome-container">
+        <div class="welcome-icon">
+          <svg class="icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <path fill="currentColor" d="M14.828 14.828a4 4 0 01-5.656 0M9 10h.01M15 10h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+          </svg>
+        </div>
+        <h2 class="welcome-title">Welcome to Swiftly! 🎉</h2>
+        <p class="welcome-text">Get started by creating your first organization to manage your hiring process.</p>
+        <div class="welcome-actions">
+          <button @click="toggleForm" class="btn btn-primary">
+            Create Your First Organization
           </button>
         </div>
       </div>
 
-      <div class="org-selector">
-        <select
-          :value="authStore.selectedOrg?.id"
-          @change="
-            (e) => {
-              const selected = authStore.orgs.find(
-                (org) => org.id === e.target.value
-              );
-              if (selected) authStore.setSelectedOrg(selected);
-            }
-          "
-          class="org-dropdown"
-        >
-          <option value="">Select an organization</option>
-          <option v-for="org in authStore.orgs" :key="org.id" :value="org.id">
-            {{ org.companyName }}
-          </option>
-        </select>
+      <!-- Organization Grid -->
+      <div v-else class="org-grid">
+        <!-- Organization Cards -->
+        <div v-for="org in authStore.orgs" :key="org.id" class="org-card" @click="selectOrg(org)">
+          <div class="org-card-header">
+            <h3 class="org-title">{{ org.companyName }}</h3>
+          </div>
+          <div class="org-card-body">
+            <div v-if="org.id === authStore.selectedOrg?.id" class="selected-badge">Selected</div>
+            <div class="org-info">
+              <p v-if="org.industry"><span class="info-label">Industry:</span> {{ org.industry }}</p>
+              <p v-if="org.location"><span class="info-label">Location:</span> {{ org.location }}</p>
+              <p v-if="org.companySize"><span class="info-label">Size:</span> {{ org.companySize }}</p>
+            </div>
+            <div class="important-updates">
+              <h4>Important Updates</h4>
+              <p>No important updates</p>
+            </div>
+            <div class="org-actions">
+              <button @click.stop="openDeleteConfirmation(org)" class="btn btn-outline btn-sm">
+                Delete
+              </button>
+              <RouterLink 
+                to="`/${authStore?.selectedOrg?.id}/${job.id}`" 
+                class="btn btn-outline2 btn-sm">
+                View Jobs
+              </RouterLink>
+            </div>
+          </div>
+        </div>
+      </div>
 
-        <div v-if="authStore.selectedOrg" class="selected-org">
-          <h3>Current Organization</h3>
-          <div class="org-details">
-            <p><strong>Name:</strong> {{ authStore.selectedOrg.companyName }}</p>
-            <p>
-              <strong>Industry:</strong> {{ authStore.selectedOrg.industry }}
-            </p>
-            <p>
-              <strong>Location:</strong> {{ authStore.selectedOrg.location }}
-            </p>
-            <p>
-              <strong>Size:</strong> {{ authStore.selectedOrg.companySize }}
-            </p>
+      <!-- Organization Creation Form -->
+      <div v-if="formActive" class="modal-overlay">
+        <div class="modal-container">
+          <div class="modal-header">
+            <h2 class="modal-title">
+              {{ isNewUser ? "Create Your First Organization" : "Create New Organization" }}
+            </h2>
+          </div>
+          
+          <form @submit.prevent="handleCreateOrg" class="modal-body">
+            <div class="form-grid">
+              <div class="form-group">
+                <label for="companyName" class="form-label">Organization Name *</label>
+                <input
+                  id="companyName"
+                  type="text"
+                  v-model="companyName"
+                  placeholder="Enter organization name"
+                  required
+                  :disabled="isSubmitting"
+                  class="form-input"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="companySize" class="form-label">Company Size</label>
+                <input
+                  id="companySize"
+                  type="text"
+                  v-model="companySize"
+                  placeholder="e.g., 1-10, 11-50, 51-200"
+                  :disabled="isSubmitting"
+                  class="form-input"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="industry" class="form-label">Industry</label>
+                <input
+                  id="industry"
+                  type="text"
+                  v-model="industry"
+                  placeholder="e.g., Technology, Healthcare"
+                  :disabled="isSubmitting"
+                  class="form-input"
+                />
+              </div>
+
+              <div class="form-group">
+                <label for="location" class="form-label">Location</label>
+                <input
+                  id="location"
+                  type="text"
+                  v-model="location"
+                  placeholder="e.g., New York, NY"
+                  :disabled="isSubmitting"
+                  class="form-input"
+                />
+              </div>
+
+              <div class="form-group form-group-full">
+                <label for="companyDescription" class="form-label">Company Description</label>
+                <textarea
+                  id="companyDescription"
+                  v-model="companyDescription"
+                  placeholder="Brief description of your company"
+                  :disabled="isSubmitting"
+                  class="form-textarea"
+                ></textarea>
+              </div>
+
+              <div class="form-group form-group-full">
+                <label for="missionStatement" class="form-label">Mission Statement</label>
+                <textarea
+                  id="missionStatement"
+                  v-model="missionStatement"
+                  placeholder="Your company's mission"
+                  :disabled="isSubmitting"
+                  class="form-textarea"
+                ></textarea>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button
+                type="button"
+                @click="toggleForm"
+                class="btn btn-secondary"
+                :disabled="isSubmitting"
+              >
+                Cancel
+              </button>
+              <button 
+                type="submit" 
+                class="btn btn-primary"
+                :disabled="isSubmitting"
+              >
+                {{ isSubmitting ? "Creating..." : "Create Organization" }}
+              </button>
+            </div>
+          </form>
+        </div>
+      </div>
+
+      <JobDashboard v-if="authStore.selectedOrg" />
+
+      <!-- Delete Confirmation Modal -->
+      <div v-if="showDeleteConfirmation" class="modal-overlay">
+        <div class="modal-container modal-sm">
+          <div class="modal-header">
+            <h3 class="modal-title">Confirm Deletion</h3>
+          </div>
+          <div class="modal-body">
+            <p class="confirm-text">Are you sure you want to delete the organization: <span class="highlight">{{ authStore.selectedOrg?.companyName }}</span>?</p>
+            <p class="warning-text">This action cannot be undone and will delete all jobs in the organization!</p>
+          </div>
+          <div class="modal-footer">
+            <button @click="closeDeleteConfirmation" class="btn btn-secondary">
+              Cancel
+            </button>
+            <button @click="deleteOrg" class="btn btn-danger">
+              Delete
+            </button>
           </div>
         </div>
       </div>
     </div>
-
-    <!-- Organization Creation Form -->
-    <div v-if="formActive" class="create-org-form">
-      <h2>
-        {{
-          isNewUser
-            ? "Create Your First Organization"
-            : "Create New Organization"
-        }}
-      </h2>
-      <form @submit.prevent="handleCreateOrg" class="form-grid">
-        <div class="form-group">
-          <label for="companyName">Organization Name</label>
-          <input
-            id="companyName"
-            type="text"
-            v-model="companyName"
-            placeholder="Enter organization name"
-            required
-            :disabled="isSubmitting"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="companySize">Company Size</label>
-          <input
-            id="companySize"
-            type="text"
-            v-model="companySize"
-            placeholder="e.g., 1-10, 11-50, 51-200"
-            required
-            :disabled="isSubmitting"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="industry">Industry</label>
-          <input
-            id="industry"
-            type="text"
-            v-model="industry"
-            placeholder="e.g., Technology, Healthcare"
-            required
-            :disabled="isSubmitting"
-          />
-        </div>
-
-        <div class="form-group">
-          <label for="location">Location</label>
-          <input
-            id="location"
-            type="text"
-            v-model="location"
-            placeholder="e.g., New York, NY"
-            required
-            :disabled="isSubmitting"
-          />
-        </div>
-
-        <div class="form-group full-width">
-          <label for="companyDescription">Company Description</label>
-          <textarea
-            id="companyDescription"
-            v-model="companyDescription"
-            placeholder="Brief description of your company"
-            required
-            :disabled="isSubmitting"
-          ></textarea>
-        </div>
-
-        <div class="form-group full-width">
-          <label for="missionStatement">Mission Statement</label>
-          <textarea
-            id="missionStatement"
-            v-model="missionStatement"
-            placeholder="Your company's mission"
-            required
-            :disabled="isSubmitting"
-          ></textarea>
-        </div>
-
-        <div class="form-actions">
-          <button
-            type="button"
-            @click="toggleForm"
-            class="secondary-button"
-            :disabled="isSubmitting"
-          >
-            Cancel
-          </button>
-          <button type="submit" class="primary-button" :disabled="isSubmitting">
-            {{ isSubmitting ? "Creating..." : "Create Organization" }}
-          </button>
-        </div>
-      </form>
-    </div>
-
-    <!-- Job Dashboard -->
-    <JobDashboard v-if="authStore.selectedOrg" />
-  </div>
-
-</SideBarLayout>
+  </SideBarLayout>
 </template>
 
 <style scoped>
+/* Dashboard Container */
 .dashboard-container {
   max-width: 1200px;
   margin: 0 auto;
   padding: 20px;
 }
 
-.dashboard-header {
+/* Page Header */
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 30px;
-}
-
-.loading-section {
-  text-align: center;
-  padding: 40px;
-  color: #6c757d;
-}
-
-.welcome-section {
-  text-align: center;
-  padding: 40px;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-  margin: 20px 0;
-}
-
-.welcome-section h2 {
-  color: #2c3e50;
-  margin-bottom: 16px;
-}
-
-.welcome-section p {
-  color: #6c757d;
   margin-bottom: 24px;
 }
 
-.section-header {
+.page-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: #2d3748;
+  margin: 0;
+}
+
+.add-btn {
+  padding: 8px 16px;
+  font-size: 14px;
+}
+
+/* Alerts */
+.alerts-container {
+  margin-bottom: 20px;
+}
+
+.alert {
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 15px;
+}
+
+.alert-error {
+  background-color: #fde8e8;
+  border-left: 4px solid #f56565;
+  color: #c53030;
+}
+
+.alert-success {
+  background-color: #e6fffa;
+  border-left: 4px solid #38b2ac;
+  color: #2c7a7b;
+}
+
+/* Loading */
+.loading-container {
   display: flex;
-  justify-content: space-between;
+  justify-content: center;
   align-items: center;
-  margin-bottom: 20px;
+  height: 250px;
 }
 
-.button-group {
-  display: flex;
-  gap: 0.5rem; /* Optional spacing between buttons */
+.loading-spinner {
+  width: 50px;
+  height: 50px;
+  border: 3px solid #e2e8f0;
+  border-radius: 50%;
+  border-top-color: #3b82f6;
+  animation: spin 1s linear infinite;
 }
 
-.error-message {
-  color: #dc3545;
-  background-color: #f8d7da;
-  border: 1px solid #f5c6cb;
-  padding: 12px;
-  border-radius: 4px;
-  margin-bottom: 20px;
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
 }
 
-.success-message {
-  color: #28a745;
-  background-color: #d4edda;
-  border: 1px solid #c3e6cb;
-  padding: 12px;
-  border-radius: 4px;
-  margin-bottom: 20px;
-}
-
-.create-org-form {
-  background-color: white;
-  padding: 24px;
+/* Welcome Section */
+.welcome-container {
+  background-color: #ffffff;
   border-radius: 8px;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+  padding: 30px;
+  text-align: center;
+  margin-bottom: 30px;
 }
 
-.form-grid {
+.welcome-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 20px;
+  color: #3b82f6;
+}
+
+.icon {
+  width: 100%;
+  height: 100%;
+  stroke: currentColor;
+  stroke-width: 2;
+  fill: none;
+}
+
+.welcome-title {
+  font-size: 24px;
+  font-weight: bold;
+  color: #1a202c;
+  margin-bottom: 15px;
+}
+
+.welcome-text {
+  color: #4a5568;
+  margin-bottom: 25px;
+}
+
+.welcome-actions {
+  margin-top: 20px;
+}
+
+/* Organization Grid */
+.org-grid {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
 }
 
-.form-group {
+.org-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  overflow: hidden;
+  transition: all 0.2s ease-in-out;
+  border: 1px solid #e2e8f0;
+  cursor: pointer;
+  position: relative;
+}
+
+.org-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
+}
+
+.org-card-header {
+  padding: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #f7fafc;
+}
+
+.org-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2d3748;
+}
+
+.org-card-body {
+  padding: 16px;
+  position: relative;
+}
+
+.selected-badge {
+  position: absolute;
+  top: -10px;
+  right: 16px;
+  background-color: #48bb78;
+  color: white;
+  font-size: 12px;
+  font-weight: 500;
+  padding: 4px 8px;
+  border-radius: 12px;
+}
+
+.org-info {
   margin-bottom: 16px;
 }
 
-.form-group.full-width {
-  grid-column: span 2;
+.org-info p {
+  margin: 8px 0;
+  font-size: 14px;
+  color: #4a5568;
 }
 
-label {
-  display: block;
-  margin-bottom: 8px;
-  color: #495057;
+.info-label {
   font-weight: 500;
+  color: #718096;
 }
 
-input,
-select,
-textarea {
-  width: 100%;
-  padding: 8px 12px;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 16px;
+.important-updates {
+  background-color: #ebf4ff;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
 }
 
-input:disabled,
-select:disabled,
-textarea:disabled {
-  background-color: #e9ecef;
-  cursor: not-allowed;
+.important-updates h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2b6cb0;
+  margin: 0 0 8px 0;
 }
 
-textarea {
-  min-height: 100px;
-  resize: vertical;
+.important-updates p {
+  font-size: 13px;
+  color: #4a5568;
+  margin: 0;
 }
 
-.form-actions {
-  grid-column: span 2;
+.org-actions {
   display: flex;
   justify-content: flex-end;
-  gap: 12px;
-  margin-top: 20px;
-}
-
-.primary-button {
-  background-color: #007bff;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.primary-button:hover:not(:disabled) {
-  background-color: #0056b3;
-}
-
-.primary-button:disabled {
-  background-color: #b3d7ff;
-  cursor: not-allowed;
-}
-
-.secondary-button {
-  background-color: #6c757d;
-  color: white;
-  border: none;
-  padding: 10px 20px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-weight: 500;
-}
-
-.secondary-button:hover:not(:disabled) {
-  background-color: #5a6268;
-}
-
-.secondary-button:disabled {
-  background-color: #a1a8ae;
-  cursor: not-allowed;
-}
-
-.secondary-button.delete {
-  background-color: #dc3545;
-}
-.secondary-button.delete:hover {
-  background-color: #c82333;
-}
-
-.logout-button {
-  background-color: #dc3545;
-  color: white;
-  border: none;
-  padding: 8px 16px;
-  border-radius: 4px;
-  cursor: pointer;
-}
-
-.logout-button:hover {
-  background-color: #c82333;
-}
-
-.org-selector {
-  margin: 20px 0;
-  padding: 20px;
-  background-color: #f8f9fa;
-  border-radius: 8px;
-}
-
-.org-dropdown {
-  width: 100%;
-  max-width: 300px;
-  padding: 8px;
-  margin: 10px 0;
-  border: 1px solid #ced4da;
-  border-radius: 4px;
-  font-size: 16px;
-}
-
-.selected-org {
-  margin-top: 20px;
-  padding: 20px;
-  background-color: white;
-  border: 1px solid #dee2e6;
-  border-radius: 4px;
-}
-
-.org-details {
+  gap: 8px;
   margin-top: 16px;
 }
 
-.org-details p {
-  margin: 8px 0;
-  color: #495057;
+/* Button Styles */
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: 4px;
+  font-size: 14px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: all 0.2s;
 }
 
-.org-details strong {
-  color: #212529;
+.btn-primary {
+  background-color: #3b82f6;
+  color: white;
 }
-/* Modal styling for delete confirmation */
+
+.btn-primary:hover {
+  background-color: #2563eb;
+}
+
+.btn-primary:disabled {
+  background-color: #bfdbfe;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background-color: #e2e8f0;
+  color: #4a5568;
+}
+
+.btn-secondary:hover {
+  background-color: #cbd5e0;
+}
+
+.btn-danger {
+  background-color: #e53e3e;
+  color: white;
+}
+
+.btn-danger:hover {
+  background-color: #c53030;
+}
+
+.btn-outline {
+  background-color: transparent;
+  color: #e53e3e;
+  border: 1px solid #e53e3e;
+}
+
+.btn-outline2 {
+  background-color: transparent;
+  color: rgb(10, 200, 10);
+  border: 1px solid #00d953;
+}
+
+.btn-outline:hover {
+  background-color: #fdf2f2;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* Form Elements */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -627,46 +676,133 @@ textarea {
   justify-content: center;
   align-items: center;
   z-index: 1000;
+  padding: 20px;
 }
 
-.confirmation-modal {
+.modal-container {
   background: white;
   border-radius: 8px;
-  width: 90%;
+  width: 100%;
+  max-width: 700px;
+  max-height: 90vh;
+  overflow-y: auto;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+}
+
+.modal-sm {
   max-width: 500px;
-  box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
-  overflow: hidden;
 }
 
-.confirmation-header {
-  padding: 1.5rem;
-  background-color: #f8f9fa;
-  border-bottom: 1px solid #e9ecef;
+.modal-header {
+  padding: 20px;
+  border-bottom: 1px solid #e2e8f0;
 }
 
-.confirmation-header h3 {
+.modal-title {
+  font-size: 18px;
+  font-weight: 600;
+  color: #1a202c;
   margin: 0;
-  color: #212529;
-  font-size: 1.3rem;
 }
 
-.confirmation-content {
-  padding: 1.5rem;
+.modal-body {
+  padding: 20px;
+}
+
+.modal-footer {
+  padding: 15px 20px;
+  background-color: #f7fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.form-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.form-group {
+  margin-bottom: 15px;
+}
+
+.form-group-full {
+  grid-column: span 2;
+}
+
+.form-label {
+  display: block;
+  font-size: 14px;
+  font-weight: 500;
+  color: #4a5568;
+  margin-bottom: 5px;
+}
+
+.form-input,
+.form-select,
+.form-textarea {
+  width: 100%;
+  padding: 8px 12px;
+  border: 1px solid #cbd5e0;
+  border-radius: 4px;
+  font-size: 14px;
+}
+
+.form-input:focus,
+.form-select:focus,
+.form-textarea:focus {
+  border-color: #3b82f6;
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.form-textarea {
+  min-height: 100px;
+  resize: vertical;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 20px;
+}
+
+.confirm-text {
+  margin-bottom: 12px;
+}
+
+.highlight {
+  font-weight: 600;
 }
 
 .warning-text {
-  color: #dc3545;
+  color: #e53e3e;
+  font-size: 14px;
   font-weight: 500;
-  margin-top: 0.5rem;
+  margin-top: 8px;
 }
 
-.confirmation-actions {
-  padding: 1.5rem;
-  background-color: #f8f9fa;
-  border-top: 1px solid #e9ecef;
-  display: flex;
-  justify-content: flex-end;
-  gap: 1rem;
+/* Media Queries */
+@media (max-width: 768px) {
+  .org-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-grid {
+    grid-template-columns: 1fr;
+  }
+  
+  .form-group-full {
+    grid-column: span 1;
+  }
+  
+  .page-header {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 12px;
+  }
 }
-
 </style>
