@@ -117,8 +117,6 @@ export const useAuthStore = defineStore("auth", () => {
    */
   const fetchUserOrgs = async (forceRefresh = false) => {
     try {
-      console.log("user", user.value);
-      console.log("userProfile", userProfile.value);
       if (!isAuthenticated.value || !user.value?.uid) { // Check isAuthenticated
         orgs.value = [];
         selectedOrg.value = null;
@@ -177,8 +175,9 @@ export const useAuthStore = defineStore("auth", () => {
           try {
             if (firebaseUser) {
               user.value = firebaseUser;
-              console.log(user.value);
-              await fetchUserProfile(user.value.uid);
+              if (!isAuthenticated.value){
+                await fetchUserProfile(user.value.uid);
+              }
               await fetchUserOrgs();
             } else {
               resetState();
@@ -211,12 +210,22 @@ export const useAuthStore = defineStore("auth", () => {
     try {
       loading.value = true;
       error.value = null;
-
       const registerUser = httpsCallable(functions, "registerUser");
       const result = await registerUser({ email, password, ...additionalData });
 
-      // Automatically sign in the user after successful registration
       await signInWithEmailAndPassword(auth, email, password);
+
+      await new Promise((resolve) => {
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          if (firebaseUser) {
+            user.value = firebaseUser;
+            await fetchUserProfile(firebaseUser.uid);
+            unsubscribe();
+            resolve();
+          }
+        });
+      });
+
       return result.data;
     } catch (err) {
       console.error("Error registering user:", err);
