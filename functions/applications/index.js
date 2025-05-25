@@ -91,7 +91,7 @@ exports.createApplication = onCall(async (request) => {
       jobID: jobId,
       orgID: orgId,
       applicationDate: now,
-      status: "Applied", // Initial status
+      status: "Not Completed", // Initial status
       messages: [], // Initialize with an empty array for chat history
       reportID: reportId,
       createdAt: now,
@@ -225,6 +225,103 @@ exports.findOneOrManyApplicationsById = onCall(async (request) => {
     throw new HttpsError(
       "internal",
       "An unexpected error occurred while finding the application."
+    );
+  }
+});
+
+
+exports.applyToJob = onCall(async (request) => {
+  try {
+    const { candidateId, jobId, applicationId, ...applicationResults } =
+      request.data;
+
+    if (!candidateId || !jobId || !applicationId) {
+      throw new HttpsError("invalid-argument", "Missing required fields");
+    }
+
+    const candidateRef = db.collection("candidates").doc(candidateId);
+    const jobRef = db.collection("jobs").doc(jobId);
+
+    const [candidateDoc, jobDoc] = await Promise.all([
+      candidateRef.get(),
+      jobRef.get(),
+    ]);
+
+    if (!candidateDoc.exists) {
+      throw new HttpsError(
+        "not-found",
+        `Candidate with ID ${candidateId} not found.`
+      );
+    }
+
+    if (!jobDoc.exists) {
+      throw new HttpsError("not-found", `Job with ID ${jobId} not found.`);
+    }
+
+    const applicationRef = db.collection("applications").doc(applicationId);
+    const applicationDoc = await applicationRef.get();
+
+    if (!applicationDoc.exists) {
+      throw new HttpsError(
+        "not-found",
+        `Application with ID ${applicationId} not found.`
+      );
+    }
+
+    const applicationData = applicationDoc.data();
+
+    if (applicationData.status === "Not Completed") {
+      //
+      const { messages, summaryToAddToReport, scoreToAddToReport } =
+        applicationResults;
+
+      // generate a new report
+      const reportId = db.collection("reports").doc().id;
+
+      const reportData = {
+        candidateId,
+        applicationId,
+        jobId,
+        questionResponses: messages,
+        summary: summaryToAddToReport,
+        score: scoreToAddToReport,
+        createdAt: admin.firestore.Timestamp.now(),
+        updatedAt: admin.firestore.Timestamp.now(),
+      };
+
+      const reportRef = db.collection("reports").doc(reportId);
+      await reportRef.set(reportData);
+
+      // now update the application to include messages and the report id
+
+      const appData = {
+        candidateId,
+        jobId,
+        orgId,
+        messages,
+        reportId,
+        status: "Completed",
+        completedAt: admin.firestore.Timestamp.now(),
+        applicationDate: admin.firestore.Timestamp.now(),
+      };
+
+      await applicationRef.update(appData);
+
+      return {
+        success: true,
+        applicationId,
+        reportId,
+        message: "Application completed successfully",
+      };
+    }
+  } catch (error) {
+    console.error("Error applying to job:", error);
+    if (error instanceof HttpsError) {
+      throw error; // Re-throw HttpsError
+    }
+    throw new HttpsError(
+      "internal",
+      "An unexpected error occurred while applying to the job."
     );
   }
 });
