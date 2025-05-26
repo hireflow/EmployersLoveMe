@@ -35,18 +35,23 @@ async function sendMessageToGemini() {
   chatError.value = "";
 
   try {
+    const geminiMessage = {
+      message: currentMessageForGemini.value,
+    }
+
     const result = await sendChat({
-      message: currentMessageForGemini.value,
+      history: historyForGemini.value,
+      message: geminiMessage,
     });
 
     historyForGemini.value.push({
-      role: "user",
-      message: currentMessageForGemini.value,
+      parts: [{ text: currentMessageForGemini.value}],
+      role: 'user', // It's good practice to explicitly define the role for the outgoing message too.
     });
 
     historyForGemini.value.push({
-      role: "model",
-      message: result.data.response,
+      parts: [{ text: result.data.response }],
+      role: 'model', 
     });
 
     currentMessageForGemini.value = "";
@@ -483,10 +488,10 @@ onMounted(async () => {
             class="message-group"
           >
             <div v-if="item.role === 'user'" class="message user-message">
-              <div class="message-content">{{ item.message }}</div>
+              <div class="message-content">{{ item.parts[0].text }}</div>
             </div>
             <div v-if="item.role === 'model'" class="message bot-message">
-              <div class="message-content">{{ item.message }}</div>
+              <div class="message-content">{{ item.parts[0].text }}</div>
             </div>
           </div>
         </div>
