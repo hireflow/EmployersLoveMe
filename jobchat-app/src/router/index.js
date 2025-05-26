@@ -118,7 +118,7 @@ router.beforeEach(async (to, from, next) => {
   }
   // Check for candidate authentication (for routes like ApplicationDetails)
   else if (to.meta.requiresCandidateAuth && !candidateAuthStore.isAuthenticated) {
-    
+
     if (to.name !== "CandidateLogin") {
       console.log(
         "Router Guard: Candidate not authenticated for ApplicationDetails, redirecting to CandidateLogin"

@@ -119,7 +119,7 @@ onMounted(async () => {
   const orgIdParam = route.params.orgId;
   const jobIdParam = route.params.jobId;
 
-  if (!candidateAuthStore.candidate?.id) {
+  if (!candidateAuthStore.isAuthenticated) {
     errorMessage.value = "Candidate not authenticated. Redirecting to login...";
     setTimeout(() => {
       router.push({
@@ -135,7 +135,7 @@ onMounted(async () => {
     return;
   }
 
-  const candidateId = candidateAuthStore.candidate.id;
+  const candidateId = candidateAuthStore.candidate.uid;
 
   if (!orgIdParam || !jobIdParam) {
     errorMessage.value = "Organization ID or Job ID is missing from the route.";
@@ -144,6 +144,9 @@ onMounted(async () => {
   }
 
   try {
+    console.log("candidateId:", candidateId);
+    console.log("jobIdParam:", jobIdParam);
+    console.log("orgIdParam:", orgIdParam);
     const result = await createApplicationCallable({
       candidateId,
       jobId: jobIdParam,

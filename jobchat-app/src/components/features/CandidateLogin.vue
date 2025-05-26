@@ -26,7 +26,6 @@ const isCheckingEmail = ref(false);
 const isLoggingIn = ref(false);
 const isRegistering = ref(false);
 
-
 const handleEmailCheck = async () => {
   if (!emailForCheckOrLogin.value) {
     emailCheckError.value = "Please enter your email address.";
@@ -38,7 +37,9 @@ const handleEmailCheck = async () => {
   showPasswordInputInSignInPanel.value = false;
 
   try {
-    const result = await candidateAuthStore.checkIfCandidateExists(emailForCheckOrLogin.value);
+    const result = await candidateAuthStore.checkIfCandidateExists(
+      emailForCheckOrLogin.value
+    );
     if (result.exists) {
       isRightPanelActive.value = false;
       showPasswordInputInSignInPanel.value = true;
@@ -60,7 +61,12 @@ const handleEmailCheck = async () => {
 
 const handleRegistrationFlow = async () => {
   registrationError.value = "";
-  if (!emailForSignup.value || !passwordForSignup.value || !nameForSignup.value || !phoneForSignup.value) {
+  if (
+    !emailForSignup.value ||
+    !passwordForSignup.value ||
+    !nameForSignup.value ||
+    !phoneForSignup.value
+  ) {
     registrationError.value = "Please fill in all fields.";
     return;
   }
@@ -121,13 +127,20 @@ const redirectToApplicationDetailsOrDashboard = () => {
   const orgId = route.query.orgId;
   const jobId = route.query.jobId;
 
+  console.log("orgId:", orgId);
+  console.log("jobId:", jobId);
+
   if (orgId && jobId) {
+    console.log(candidateAuthStore.candidate);
+    console.log(candidateAuthStore?.candidateProfile);
+    console.log(candidateAuthStore.isAuthenticated);
     router.push({ name: "ApplicationDetails", params: { orgId, jobId } });
   } else {
-    router.push(candidateAuthStore.candidate?.dashboardUrl || "/candidate-dashboard");
+    router.push(
+      candidateAuthStore.candidate?.dashboardUrl || "/candidate-dashboard"
+    );
   }
 };
-
 
 const togglePanel = () => {
   isRightPanelActive.value = !isRightPanelActive.value;
@@ -136,14 +149,14 @@ const togglePanel = () => {
   registrationError.value = "";
   showPasswordInputInSignInPanel.value = false;
 
-  if (isRightPanelActive.value) { 
+  if (isRightPanelActive.value) {
     if (emailForCheckOrLogin.value && !emailForSignup.value) {
-        emailForSignup.value = emailForCheckOrLogin.value;
+      emailForSignup.value = emailForCheckOrLogin.value;
     }
     passwordForLogin.value = "";
   } else {
     if (emailForSignup.value && !emailForCheckOrLogin.value) {
-        emailForCheckOrLogin.value = emailForSignup.value;
+      emailForCheckOrLogin.value = emailForSignup.value;
     }
     nameForSignup.value = "";
     phoneForSignup.value = "";
@@ -165,7 +178,6 @@ const handleSignInPanelAction = () => {
     handleEmailCheck();
   }
 };
-
 </script>
 
 <template>
@@ -182,24 +194,44 @@ const handleSignInPanelAction = () => {
       <div class="form-container sign-up-container">
         <form @submit.prevent="handleRegistrationFlow">
           <h1>Create Account</h1>
-          <div v-if="registrationError" class="error">{{ registrationError }}</div>
+          <div v-if="registrationError" class="error">
+            {{ registrationError }}
+          </div>
           <span>Please provide your details</span>
-          <input v-model="nameForSignup" type="text" placeholder="Full Name" required />
+          <input
+            v-model="nameForSignup"
+            type="text"
+            placeholder="Full Name"
+            required
+          />
           <input
             v-model="emailForSignup"
             type="email"
             placeholder="Email"
             required
-            disabled />
-          <input v-model="phoneForSignup" type="tel" placeholder="Phone Number" required />
+            disabled
+          />
+          <input
+            v-model="phoneForSignup"
+            type="tel"
+            placeholder="Phone Number"
+            required
+          />
           <input
             v-model="passwordForSignup"
             type="password"
             placeholder="Password"
             required
           />
-          <button type="submit" :disabled="isRegistering || candidateAuthStore.loading">
-            {{ isRegistering || candidateAuthStore.loading ? "Signing Up..." : "Sign Up" }}
+          <button
+            type="submit"
+            :disabled="isRegistering || candidateAuthStore.loading"
+          >
+            {{
+              isRegistering || candidateAuthStore.loading
+                ? "Signing Up..."
+                : "Sign Up"
+            }}
           </button>
         </form>
       </div>
@@ -209,13 +241,19 @@ const handleSignInPanelAction = () => {
           <h1>Sign In</h1>
           <div v-if="emailCheckError" class="error">{{ emailCheckError }}</div>
           <div v-if="loginError" class="error">{{ loginError }}</div>
-          <span>{{ showPasswordInputInSignInPanel ? 'Enter your password to sign in' : 'Enter your email to continue' }}</span>
+          <span>{{
+            showPasswordInputInSignInPanel
+              ? "Enter your password to sign in"
+              : "Enter your email to continue"
+          }}</span>
           <input
             v-model="emailForCheckOrLogin"
             type="email"
             placeholder="Email"
             required
-            :disabled="showPasswordInputInSignInPanel || isCheckingEmail || isLoggingIn"
+            :disabled="
+              showPasswordInputInSignInPanel || isCheckingEmail || isLoggingIn
+            "
           />
           <input
             v-if="showPasswordInputInSignInPanel"
@@ -224,7 +262,13 @@ const handleSignInPanelAction = () => {
             placeholder="Password"
             required
           />
-          <button type="submit" class="signin-button" :disabled="isCheckingEmail || isLoggingIn || candidateAuthStore.loading">
+          <button
+            type="submit"
+            class="signin-button"
+            :disabled="
+              isCheckingEmail || isLoggingIn || candidateAuthStore.loading
+            "
+          >
             {{ signInButtonText }}
           </button>
         </form>
@@ -234,13 +278,27 @@ const handleSignInPanelAction = () => {
         <div class="overlay">
           <div class="overlay-panel overlay-left">
             <h1>Welcome Back!</h1>
-            <p>Already have an account? Sign in to continue your application.</p>
-            <button class="ghost" @click="togglePanel" :disabled="isCheckingEmail || isLoggingIn">Sign In</button>
+            <p>
+              Already have an account? Sign in to continue your application.
+            </p>
+            <button
+              class="ghost"
+              @click="togglePanel"
+              :disabled="isCheckingEmail || isLoggingIn"
+            >
+              Sign In
+            </button>
           </div>
           <div class="overlay-panel overlay-right">
             <h1>New Here?</h1>
             <p>Enter your email and we'll get you started with an account.</p>
-            <button class="ghost" @click="togglePanel" :disabled="isRegistering">Create Account</button>
+            <button
+              class="ghost"
+              @click="togglePanel"
+              :disabled="isRegistering"
+            >
+              Create Account
+            </button>
           </div>
         </div>
       </div>
@@ -265,7 +323,7 @@ const handleSignInPanelAction = () => {
   font-family: "Poppins", sans-serif;
   min-height: 100vh;
   width: 100%;
-  background: linear-gradient(135deg, #a7f3d0 0%,  #e6fffa 70%, #ffffff 100%);
+  background: linear-gradient(135deg, #a7f3d0 0%, #e6fffa 70%, #ffffff 100%);
   background-size: cover;
   background-position: center;
   position: relative;
@@ -275,7 +333,7 @@ const handleSignInPanelAction = () => {
 .brand {
   margin-bottom: 2rem;
   text-align: center;
-  color: #1e3a2b; 
+  color: #1e3a2b;
 }
 
 .brand-name {
@@ -297,22 +355,22 @@ h1 {
   color: #333;
 }
 
-p { 
+p {
   font-size: 14px;
   font-weight: 400;
   line-height: 1.5;
   margin: 20px 0 30px;
-  color: #f0fff4; 
+  color: #f0fff4;
 }
 
-span { 
+span {
   font-size: 12px;
   color: #505050;
   margin-bottom: 10px;
 }
 
-a { 
-  color: #22c55e; 
+a {
+  color: #22c55e;
   font-size: 14px;
   text-decoration: none;
   margin: 15px 0;
@@ -320,14 +378,14 @@ a {
 }
 
 a:hover {
-  color: #16a34a; 
+  color: #16a34a;
   text-decoration: underline;
 }
 
 button {
   border-radius: 50px;
   border: none;
-  background-color: #22c55e; 
+  background-color: #22c55e;
   color: #ffffff;
   font-size: 14px;
   font-weight: 600;
@@ -336,7 +394,7 @@ button {
   text-transform: uppercase;
   transition: all 0.3s ease;
   cursor: pointer;
-  box-shadow: 0 5px 15px rgba(34, 197, 94, 0.3); 
+  box-shadow: 0 5px 15px rgba(34, 197, 94, 0.3);
 }
 button:disabled {
   background-color: #a7d7c5;
@@ -344,14 +402,13 @@ button:disabled {
   box-shadow: 0 5px 15px rgba(34, 197, 94, 0.1);
 }
 button:disabled:hover {
-    transform: none;
-    background-color: #a7d7c5;
+  transform: none;
+  background-color: #a7d7c5;
 }
 
-
 button:hover:not(:disabled) {
-  background-color: #16a34a; 
-  box-shadow: 0 8px 20px rgba(34, 197, 94, 0.4); 
+  background-color: #16a34a;
+  box-shadow: 0 8px 20px rgba(34, 197, 94, 0.4);
   transform: translateY(-2px);
 }
 
@@ -363,20 +420,19 @@ button:focus {
   outline: none;
 }
 
-button.ghost { 
+button.ghost {
   background-color: transparent;
   border: 2px solid #ffffff;
   box-shadow: none;
 }
 button.ghost:disabled {
-    border-color: rgba(255, 255, 255, 0.5);
-    color: rgba(255, 255, 255, 0.5);
-    background-color: transparent;
+  border-color: rgba(255, 255, 255, 0.5);
+  color: rgba(255, 255, 255, 0.5);
+  background-color: transparent;
 }
 button.ghost:disabled:hover {
-    background-color: transparent;
+  background-color: transparent;
 }
-
 
 button.ghost:hover:not(:disabled) {
   background-color: rgba(255, 255, 255, 0.1);
@@ -399,7 +455,7 @@ form {
 
 input {
   background-color: #f7f7f7;
-  border: 1px solid #e0e0e0; 
+  border: 1px solid #e0e0e0;
   padding: 15px;
   margin: 10px 0;
   width: 100%;
@@ -409,16 +465,16 @@ input {
   font-size: 14px;
 }
 input:disabled {
-    background-color: #e9e9e9;
-    cursor: not-allowed;
-    color: #757575;
+  background-color: #e9e9e9;
+  cursor: not-allowed;
+  color: #757575;
 }
 
 input:focus:not(:disabled) {
-  border-color: #22c55e; 
+  border-color: #22c55e;
   background-color: #ffffff;
   outline: none;
-  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1); 
+  box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.1);
 }
 
 input::placeholder {
@@ -428,7 +484,7 @@ input::placeholder {
 .container {
   background-color: #ffffff;
   border-radius: 15px;
-  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15); 
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
   position: relative;
   overflow: hidden;
   width: 900px;
@@ -452,7 +508,7 @@ input::placeholder {
 
 .container.right-panel-active .sign-in-container {
   transform: translateX(100%);
-  opacity: 0; 
+  opacity: 0;
 }
 
 .sign-up-container {
@@ -499,8 +555,8 @@ input::placeholder {
 }
 
 .overlay {
-  background: #22c55e; 
-  background: linear-gradient(135deg, #22c55e 0%, #15803d 100%); 
+  background: #22c55e;
+  background: linear-gradient(135deg, #22c55e 0%, #15803d 100%);
   background-repeat: no-repeat;
   background-size: cover;
   background-position: 0 0;
@@ -550,7 +606,7 @@ input::placeholder {
 }
 
 .error {
-  color: #ef4444; 
+  color: #ef4444;
   margin-bottom: 15px;
   font-size: 13px;
   font-weight: 500;
@@ -560,52 +616,52 @@ input::placeholder {
 }
 
 @media (max-width: 768px) {
-  .body-container{
+  .body-container {
     padding: 10px;
-    min-height: unset; 
+    min-height: unset;
   }
   .brand {
-      margin-bottom: 1rem;
+    margin-bottom: 1rem;
   }
   .brand-name {
-      font-size: 2rem;
+    font-size: 2rem;
   }
   .brand-tagline {
-      font-size: 1rem;
+    font-size: 1rem;
   }
   .container {
-    min-height: auto; 
+    min-height: auto;
     width: 95%;
     margin-top: 1rem;
     margin-bottom: 1rem;
   }
-  .form-container{
-    padding: 0 25px; 
-    height: auto; 
-    padding-bottom: 20px; 
+  .form-container {
+    padding: 0 25px;
+    height: auto;
+    padding-bottom: 20px;
   }
   h1 {
-      font-size: 1.5rem;
-      margin-bottom: 10px;
+    font-size: 1.5rem;
+    margin-bottom: 10px;
   }
   button {
-      padding: 10px 30px;
-      font-size: 13px;
+    padding: 10px 30px;
+    font-size: 13px;
   }
   input {
-      padding: 12px 15px; 
-      font-size: 13px;
+    padding: 12px 15px;
+    font-size: 13px;
   }
   .overlay-container {
-    display: none; 
+    display: none;
   }
   .sign-in-container,
   .sign-up-container {
     width: 100%;
-    position: relative; 
-    transform: none !important; 
-    opacity: 1 !important; 
-    z-index: auto !important; 
+    position: relative;
+    transform: none !important;
+    opacity: 1 !important;
+    z-index: auto !important;
   }
   .sign-in-container {
     display: flex; /* Default state for sign-in */
