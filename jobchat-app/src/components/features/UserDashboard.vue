@@ -186,7 +186,7 @@ const toggleForm = () => {
 
 <template>
   <SideBarLayout>
-    <!-- Main Content Area -->
+    <!-- Main Content -->
     <div class="dashboard-container">
       <!-- Page Header -->
       <div class="page-header">
@@ -513,7 +513,7 @@ const toggleForm = () => {
 .org-card {
   background-color: white;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   transition: all 0.2s ease-in-out;
   border: 1px solid #e2e8f0;

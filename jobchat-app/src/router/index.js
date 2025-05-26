@@ -20,7 +20,7 @@ const routes = [
   {
     path: "/:orgId/jobs",
     name: "JobDashboard",
-    component: () => import("@/components/features/JobDashboard.vue"),
+    component: () => import("@/components/features/JobDashboard2.vue"),
     meta: { requiresAuth: true },
   },
   {

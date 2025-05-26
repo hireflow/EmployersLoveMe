@@ -588,7 +588,7 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
         </div>
       </div>
     </div>
-  </div>
+    </div>
   </SideBarLayout>
 </template>
 
