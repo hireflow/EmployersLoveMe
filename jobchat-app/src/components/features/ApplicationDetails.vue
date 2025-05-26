@@ -15,8 +15,9 @@ const candidateAuthStore = useCandidateAuthStore();
 const functions = getFunctions(app);
 
 const sendChat = httpsCallable(functions, "geminiChatbot");
-const historyForGemini = ref([]);
 const currentMessageForGemini = ref("");
+const historyForGemini = ref([]);
+
 const isSendingMessage = ref(false);
 const chatError = ref("");
 const showChatbot = ref(false);
@@ -36,16 +37,19 @@ async function sendMessageToGemini() {
   try {
     const result = await sendChat({
       message: currentMessageForGemini.value,
-      history: historyForGemini.value,
     });
 
-    const res = result.data;
     historyForGemini.value.push({
+      role: "user",
       message: currentMessageForGemini.value,
-      response: res,
     });
 
-    currentMessageForGemini.value = ""; // Clear input after sending
+    historyForGemini.value.push({
+      role: "model",
+      message: result.data.response,
+    });
+
+    currentMessageForGemini.value = "";
   } catch (error) {
     chatError.value = "Failed to send message. Please try again.";
     console.error("Chat error:", error);
@@ -65,11 +69,6 @@ async function handleFormSubmitAndInitializeChatbot() {
 
   try {
     showChatbot.value = true;
-
-    historyForGemini.value.push({
-      message: "Hello, I'm ready to start your application process.",
-      response: `Welcome! I see you're ${employmentForm.value.employmentStatus} with ${employmentForm.value.yearsOfExperience} years of experience. Let's begin your application process. What would you like to know about the role?`,
-    });
   } catch (error) {
     chatError.value = "Failed to submit form. Please try again.";
     console.error("Form submission error:", error);
@@ -474,16 +473,20 @@ onMounted(async () => {
 
       <div v-else class="chatbot-container">
         <div class="chat-messages" ref="chatMessages">
+          <div>
+            This is where the chatbot will say, we see your resume, see the job
+            info and the org info... blah blah
+          </div>
           <div
             v-for="(item, index) in historyForGemini"
             :key="index"
             class="message-group"
           >
-            <div class="message user-message">
+            <div v-if="item.role === 'user'" class="message user-message">
               <div class="message-content">{{ item.message }}</div>
             </div>
-            <div class="message bot-message">
-              <div class="message-content">{{ item.response }}</div>
+            <div v-if="item.role === 'model'" class="message bot-message">
+              <div class="message-content">{{ item.message }}</div>
             </div>
           </div>
         </div>
