@@ -3,7 +3,6 @@ import { ref, computed } from "vue"; // Added computed
 import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
-  createUserWithEmailAndPassword, // Added
   signOut,
   setPersistence,
   browserLocalPersistence,
@@ -19,6 +18,8 @@ export const useCandidateAuthStore = defineStore("candidate-auth", () => {
   const candidate = ref(null); // This will store the Firebase User object
   const candidateProfile = ref(null); // For additional profile data (name, phone, resume, application IDs)
   const loading = ref(true); // Combined loading state, true initially for initialize
+  const checkloading = ref(false); // Combined loading state, true initially for initialize
+
   const error = ref(null);
 
   const applicationsList = ref([]);
@@ -86,11 +87,13 @@ export const useCandidateAuthStore = defineStore("candidate-auth", () => {
           loading.value = true;
           if (firebaseUser) {
             candidate.value = firebaseUser;
-            await fetchCandidateProfile(firebaseUser.uid); // This sets candidateProfile.value
+            if (!isAuthenticated.value){
+              await fetchCandidateProfile(candidate.value.uid);
+            }
             if (isAuthenticated.value && candidateProfile.value?.applications?.length) {
-                await fetchMyApplications();
+              await fetchMyApplications();
             } else if (!candidateProfile.value) {
-                console.warn(`User ${firebaseUser.uid} authenticated with Firebase, but no candidate profile found.`);
+              console.warn(`User ${firebaseUser.uid} authenticated with Firebase, but no candidate profile found.`);
             }
           } else {
             resetState();
@@ -137,23 +140,30 @@ export const useCandidateAuthStore = defineStore("candidate-auth", () => {
     loading.value = true;
     error.value = null;
     try {
-      const userCredential = await createUserWithEmailAndPassword(
-        auth,
-        email,
-        password
-      );
-      const firebaseUser = userCredential.user;
 
       await setCandidateProfileCallable({
-        uid: firebaseUser.uid,
-        email: firebaseUser.email,
+        email: email,
+        password: password,
         name,
         phone,
         resumeUrl,
         applications: [], // Initialize with empty applications
       });
-      // The function resolves successfully if Firebase user is created and profile creation is initiated.
-      return { success: true, uid: firebaseUser.uid };
+
+      await signInWithEmailAndPassword(auth, email, password);
+
+      await new Promise((resolve) => {
+        const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+          if (firebaseUser) {
+            candidate.value = firebaseUser;
+            await fetchCandidateProfile(firebaseUser.uid);
+            unsubscribe();
+            resolve();
+          }
+        });
+      });
+
+      return { success: true };
     } catch (err) {
       console.error("Error in candidate register:", err);
       // Handle specific Firebase errors (e.g., email-already-in-use)
@@ -169,7 +179,6 @@ export const useCandidateAuthStore = defineStore("candidate-auth", () => {
     error.value = null;
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      await new Promise(r => setTimeout(r, 50)); // Small delay for state propagation
       await fetchCandidateProfile(candidate.value.uid);
       if (!isAuthenticated.value) {
         error.value = "Login failed: This account is not registered as a candidate or the profile is missing.";
@@ -191,7 +200,7 @@ export const useCandidateAuthStore = defineStore("candidate-auth", () => {
     error.value = null;
     try {
       await signOut(auth);
-      router.push({ name: "CandidateLogin" }); // Ensure this route exists
+      resetState();
     } catch (err) {
       console.error("Error logging out candidate:", err);
       error.value = err.message || "Logout failed.";
@@ -202,7 +211,7 @@ export const useCandidateAuthStore = defineStore("candidate-auth", () => {
   };
 
   const checkIfCandidateExists = async (emailToCheck) => {
-    loading.value = true;
+    checkloading.value = true;
     error.value = null;
     try {
       // This callable likely checks your custom candidate profiles collection, not Firebase Auth directly
@@ -218,7 +227,7 @@ export const useCandidateAuthStore = defineStore("candidate-auth", () => {
       error.value = err.message || "Error checking email existence.";
       throw err;
     } finally {
-      loading.value = false;
+      checkloading.value = false;
     }
   };
 

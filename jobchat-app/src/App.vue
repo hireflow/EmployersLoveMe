@@ -8,7 +8,7 @@
 -->
 
 <template>
-  <router-view v-if="!authStore.loading"></router-view>
+  <router-view v-if="!authStore.loading && !candidateAuthStore.loading" />
   <div v-else class="loading">Loading...</div>
 </template>
 

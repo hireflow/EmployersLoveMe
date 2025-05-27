@@ -17,6 +17,7 @@ const orgFunctions = require("./orgs");
 const candidateFunctions = require("./candidates");
 const applicationFunctions = require("./applications");
 const jobFunctions = require("./jobs");
+const chatbotFunctions = require("./chatbot");
 
 // job functions
 exports.getPublicJobDetails = jobFunctions.getPublicJobDetails;
@@ -25,6 +26,7 @@ exports.getPublicJobDetails = jobFunctions.getPublicJobDetails;
 exports.createApplication = applicationFunctions.createApplication;
 exports.findOneOrManyApplicationsById =
   applicationFunctions.findOneOrManyApplicationsById;
+exports.applyToJob = applicationFunctions.applyToJob;
 
 // Export auth functions
 exports.registerUser = authFunctions.registerUser;
@@ -47,6 +49,9 @@ exports.checkCandidateEmailExists =
   candidateFunctions.checkCandidateEmailExists;
 exports.setCandidateProfile = candidateFunctions.setCandidateProfile;
 exports.getCandidateProfile = candidateFunctions.getCandidateProfile;
+
+//gemini functions
+exports.geminiChatbot = chatbotFunctions.geminiChatbot;
 
 // Example HTTP function
 exports.helloWorld = onRequest(

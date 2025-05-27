@@ -9,6 +9,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
+    "@google/genai": "^1.0.1",
     "@mdi/font": "^7.4.47"
   },
   "devDependencies": {

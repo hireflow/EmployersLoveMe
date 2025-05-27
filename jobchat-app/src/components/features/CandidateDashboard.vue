@@ -1,42 +1,40 @@
 <script setup>
 import { onMounted, computed, watch } from "vue";
 import { useCandidateAuthStore } from "@/stores/candidate"; // Or your path to the store
-import LoadingSpinner from "@/components/ui/LoadingSpinner.vue"; // Adjust path if needed
-// import NavButton from '@/components/ui/NavButton/NavButton.vue'; // Not used in this version, but keep if needed elsewhere
+import { useRouter } from "vue-router";
+import LoadingSpinner from "@/components/ui/LoadingSpinner.vue";
 
 const candidateAuthStore = useCandidateAuthStore();
+const router = useRouter();
 
 // Computed properties to reactively get data from the store
 const applications = computed(() => candidateAuthStore.applicationsList);
 const isLoading = computed(() => candidateAuthStore.isLoadingApplications);
 const error = computed(() => candidateAuthStore.applicationsError);
-const candidateIsLoggedIn = computed(() => !!candidateAuthStore.candidate); // To ensure we only fetch if candidate is present
+const candidateIsLoggedIn = computed(() => !!candidateAuthStore.isAuthenticated);
+
+const logoutAction = async () => {
+  try {
+    await candidateAuthStore.logout();
+    router.push("/candidate-login");
+  } catch (error) {
+    console.error("Logout error:", error);
+  }
+};
 
 onMounted(async () => {
-  // The initialize() in your store already handles loading from localStorage.
-  // We should wait for initLoading to be false before attempting to fetch.
-  if (!candidateAuthStore.initLoading) {
+  if (!candidateAuthStore.loading) {
     if (candidateIsLoggedIn.value) {
-      // console.log("CandidateDashboard: Attempting to fetch applications.");
       await candidateAuthStore.fetchMyApplications();
-    } else {
-      // console.log("CandidateDashboard: No candidate logged in, not fetching applications.");
-      // Route guard should ideally handle redirecting unauthenticated users.
     }
   } else {
-    // If initLoading is true, set up a watcher or rely on router guards to delay fetch
-    // For simplicity here, we'll assume initLoading becomes false relatively quickly
-    // or the user navigates here after init is done.
-    // A robust way is to watch initLoading:
     const unwatch = watch(
-      () => candidateAuthStore.initLoading,
+      () => candidateAuthStore.loading,
       (newInitLoading) => {
         if (!newInitLoading && candidateIsLoggedIn.value) {
-          // console.log("CandidateDashboard: initLoading finished, attempting to fetch applications.");
           candidateAuthStore.fetchMyApplications();
-          unwatch(); // Stop watching once done
+          unwatch();
         } else if (!newInitLoading && !candidateIsLoggedIn.value) {
-          // console.log("CandidateDashboard: initLoading finished, no candidate logged in.");
           unwatch();
         }
       }
@@ -44,7 +42,6 @@ onMounted(async () => {
   }
 });
 
-// Re-usable timestamp formatter (consider moving to a utils file: src/utils/formatters.js)
 const formatTimestamp = (timestampInput) => {
   if (!timestampInput) return "N/A";
   let date;
@@ -53,7 +50,6 @@ const formatTimestamp = (timestampInput) => {
     typeof timestampInput === "object" &&
     timestampInput._seconds !== undefined
   ) {
-    // Firestore Timestamp object
     date = new Date(
       timestampInput._seconds * 1000 +
         (timestampInput._nanoseconds || 0) / 1000000
@@ -66,9 +62,9 @@ const formatTimestamp = (timestampInput) => {
   ) {
     try {
       date = new Date(timestampInput);
-      if (isNaN(date.getTime())) return String(timestampInput); // If parsing failed
+      if (isNaN(date.getTime())) return String(timestampInput);
     } catch (e) {
-      return String(timestampInput); // Fallback
+      return String(timestampInput);
     }
   } else {
     return "Invalid Date";
@@ -85,6 +81,7 @@ const formatTimestamp = (timestampInput) => {
   <div class="candidate-dashboard-container">
     <header class="page-header">
       <h1>My Applications</h1>
+      <button class="logout-button" @click="logoutAction">Logout</button>
     </header>
 
     <div v-if="isLoading && applications.length === 0" class="loading-state">
@@ -102,7 +99,7 @@ const formatTimestamp = (timestampInput) => {
     </div>
 
     <div
-      v-else-if="!candidateIsLoggedIn && !candidateAuthStore.initLoading"
+      v-else-if="!candidateIsLoggedIn && !candidateAuthStore.loading"
       class="info-message"
     >
       <p>Please log in to see your applications.</p>
@@ -165,6 +162,7 @@ const formatTimestamp = (timestampInput) => {
 }
 
 .page-header {
+  position: relative;
   margin-bottom: 2rem;
   padding-bottom: 1rem;
   border-bottom: 1px solid #e0e0e0;
@@ -174,8 +172,29 @@ const formatTimestamp = (timestampInput) => {
   color: #2c3e50;
   font-size: 2rem;
   font-weight: 600;
+  margin: 0;
 }
 
+/* New logout button styling */
+.logout-button {
+  position: absolute;
+  top: 0.25rem;
+  right: 0;
+  background-color: #d32f2f;
+  color: white;
+  border: none;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease;
+}
+
+.logout-button:hover {
+  background-color: #b71c1c;
+}
+
+/* rest of your styles unchanged ... */
 .loading-state,
 .error-message,
 .no-applications,
@@ -211,7 +230,7 @@ const formatTimestamp = (timestampInput) => {
   background-color: #b71c1c;
 }
 .action-button {
-  background-color: #1976d2; /* Primary blue */
+  background-color: #1976d2;
 }
 .action-button:hover {
   background-color: #1565c0;

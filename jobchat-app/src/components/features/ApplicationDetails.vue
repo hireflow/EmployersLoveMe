@@ -14,6 +14,85 @@ const router = useRouter();
 const candidateAuthStore = useCandidateAuthStore();
 const functions = getFunctions(app);
 
+const sendChat = httpsCallable(functions, "geminiChatbot");
+const currentMessageForGemini = ref("");
+const historyForGemini = ref([]);
+
+const isSendingMessage = ref(false);
+const chatError = ref("");
+const showChatbot = ref(false);
+const employmentForm = ref({
+  employmentStatus: "",
+  yearsOfExperience: "",
+  currentSalary: "",
+  noticePeriod: "",
+});
+
+async function sendMessageToGemini() {
+  if (!currentMessageForGemini.value.trim()) return;
+
+  isSendingMessage.value = true;
+  chatError.value = "";
+
+  try {
+    const geminiMessage = {
+      message: currentMessageForGemini.value,
+    }
+
+    const result = await sendChat({
+      history: historyForGemini.value,
+      message: geminiMessage,
+    });
+
+    historyForGemini.value.push({
+      parts: [{ text: currentMessageForGemini.value}],
+      role: 'user', // It's good practice to explicitly define the role for the outgoing message too.
+    });
+
+    historyForGemini.value.push({
+      parts: [{ text: result.data.response }],
+      role: 'model', 
+    });
+
+    currentMessageForGemini.value = "";
+  } catch (error) {
+    chatError.value = "Failed to send message. Please try again.";
+    console.error("Chat error:", error);
+  } finally {
+    isSendingMessage.value = false;
+  }
+}
+
+async function handleFormSubmitAndInitializeChatbot() {
+  // this is where we will send the user information and the other information
+  // that the chatbot needs to initialize the environment
+
+  if (!employmentForm.value.employmentStatus) {
+    chatError.value = "Please fill in all required fields";
+    return;
+  }
+
+  try {
+    showChatbot.value = true;
+  } catch (error) {
+    chatError.value = "Failed to submit form. Please try again.";
+    console.error("Form submission error:", error);
+  }
+}
+
+//  const response = await fetch(FUNCTION_URL, {
+//       method: 'POST',
+//       headers: {
+//         'Content-Type': 'application/json',
+//       },
+//       body: JSON.stringify({
+//         message: currentMessageForGemini.parts[0].text, // The current user message
+//         history: historyForGemini // The rest of the conversation history
+//       }),
+//     });
+
+// function url is going to be our callable cloud function
+
 // Refs for application and report IDs
 const applicationId = ref(null);
 const reportId = ref(null);
@@ -119,7 +198,7 @@ onMounted(async () => {
   const orgIdParam = route.params.orgId;
   const jobIdParam = route.params.jobId;
 
-  if (!candidateAuthStore.candidate?.id) {
+  if (!candidateAuthStore.isAuthenticated) {
     errorMessage.value = "Candidate not authenticated. Redirecting to login...";
     setTimeout(() => {
       router.push({
@@ -135,7 +214,7 @@ onMounted(async () => {
     return;
   }
 
-  const candidateId = candidateAuthStore.candidate.id;
+  const candidateId = candidateAuthStore.candidate.uid;
 
   if (!orgIdParam || !jobIdParam) {
     errorMessage.value = "Organization ID or Job ID is missing from the route.";
@@ -322,14 +401,122 @@ onMounted(async () => {
         </p>
       </section>
 
-      <div class="next-steps">
-        <h3>Next Steps:</h3>
-        <p>
-          Thank you for your application! We will guide you through the next
-          steps shortly.
+      <div class="application-form" v-if="!showChatbot">
+        <h3>Complete Your Application</h3>
+        <p class="form-description">
+          Please provide some basic information to help us better understand
+          your background.
         </p>
-        <div class="chatbot-placeholder">
-          <p>[Chatbot Interface Will Be Here]</p>
+
+        <form
+          @submit.prevent="handleFormSubmitAndInitializeChatbot"
+          class="employment-form"
+        >
+          <div class="form-group">
+            <label for="employmentStatus">Current Employment Status*</label>
+            <select
+              id="employmentStatus"
+              v-model="employmentForm.employmentStatus"
+              required
+              class="form-input"
+            >
+              <option value="">Select your status</option>
+              <option value="Employed">Employed</option>
+              <option value="Unemployed">Unemployed</option>
+              <option value="Self-employed">Self-employed</option>
+              <option value="Student">Student</option>
+              <option value="Other">Other</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="yearsOfExperience">Years of Experience</label>
+            <input
+              type="number"
+              id="yearsOfExperience"
+              v-model="employmentForm.yearsOfExperience"
+              min="0"
+              max="50"
+              class="form-input"
+              placeholder="Enter years of experience"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="currentSalary">Current Salary (Optional)</label>
+            <input
+              type="number"
+              id="currentSalary"
+              v-model="employmentForm.currentSalary"
+              class="form-input"
+              placeholder="Enter your current salary"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="noticePeriod">Notice Period (if employed)</label>
+            <select
+              id="noticePeriod"
+              v-model="employmentForm.noticePeriod"
+              class="form-input"
+            >
+              <option value="">Select notice period</option>
+              <option value="Immediate">Immediate</option>
+              <option value="1 week">1 week</option>
+              <option value="2 weeks">2 weeks</option>
+              <option value="1 month">1 month</option>
+              <option value="2 months">2 months</option>
+              <option value="3 months">3 months</option>
+            </select>
+          </div>
+
+          <button type="submit" class="submit-button">
+            Start Application Process
+          </button>
+        </form>
+      </div>
+
+      <div v-else class="chatbot-container">
+        <div class="chat-messages" ref="chatMessages">
+          <div>
+            This is where the chatbot will say, we see your resume, see the job
+            info and the org info... blah blah
+          </div>
+          <div
+            v-for="(item, index) in historyForGemini"
+            :key="index"
+            class="message-group"
+          >
+            <div v-if="item.role === 'user'" class="message user-message">
+              <div class="message-content">{{ item.parts[0].text }}</div>
+            </div>
+            <div v-if="item.role === 'model'" class="message bot-message">
+              <div class="message-content">{{ item.parts[0].text }}</div>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="chatError" class="chat-error">
+          {{ chatError }}
+        </div>
+
+        <div class="chat-input-container">
+          <input
+            v-model="currentMessageForGemini"
+            @keyup.enter="sendMessageToGemini"
+            type="text"
+            placeholder="Type your message..."
+            :disabled="isSendingMessage"
+            class="chat-input"
+          />
+          <button
+            @click="sendMessageToGemini"
+            :disabled="isSendingMessage || !currentMessageForGemini.trim()"
+            class="send-button"
+          >
+            <span v-if="isSendingMessage">Sending...</span>
+            <span v-else>Send</span>
+          </button>
         </div>
       </div>
     </div>
@@ -515,27 +702,161 @@ onMounted(async () => {
   margin: 1.5rem 0;
 }
 
-.next-steps {
+.application-form {
   margin-top: 2.5rem;
-  padding-top: 1.5rem;
-  border-top: 1px solid #e0e0e0;
-  text-align: center;
+  padding: 2rem;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #e0e0e0;
 }
 
-.next-steps h3 {
-  font-size: 1.4rem;
+.form-description {
+  text-align: center;
+  color: #666;
+  margin-bottom: 2rem;
+}
+
+.employment-form {
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 0.5rem;
   color: #333;
+  font-weight: 500;
+}
+
+.form-input {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  font-size: 1rem;
+  transition: border-color 0.2s;
+}
+
+.form-input:focus {
+  outline: none;
+  border-color: #1976d2;
+}
+
+.submit-button {
+  width: 100%;
+  padding: 1rem;
+  background: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+
+.submit-button:hover {
+  background: #1565c0;
+}
+
+.submit-button:disabled {
+  background: #b0bec5;
+  cursor: not-allowed;
+}
+
+.chatbot-container {
+  margin-top: 2rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.chat-messages {
+  height: 400px;
+  overflow-y: auto;
+  padding: 1rem;
+  background: #f8f9fa;
+}
+
+.message-group {
   margin-bottom: 1rem;
 }
 
-.chatbot-placeholder {
-  margin-top: 1.5rem;
-  padding: 2.5rem;
-  background-color: #eef2f7;
-  border-radius: 8px;
-  color: #5a6a7b;
-  font-style: italic;
+.message {
+  max-width: 80%;
+  margin-bottom: 0.5rem;
+  padding: 0.75rem 1rem;
+  border-radius: 12px;
+  line-height: 1.4;
+}
+
+.user-message {
+  margin-left: auto;
+  background: #1976d2;
+  color: white;
+}
+
+.bot-message {
+  margin-right: auto;
+  background: #e9ecef;
+  color: #212529;
+}
+
+.message-content {
+  word-wrap: break-word;
+}
+
+.chat-error {
+  padding: 0.5rem;
+  background: #ffe3e3;
+  color: #d32f2f;
+  text-align: center;
+  font-size: 0.9rem;
+}
+
+.chat-input-container {
+  display: flex;
+  padding: 1rem;
+  background: #fff;
+  border-top: 1px solid #e0e0e0;
+}
+
+.chat-input {
+  flex: 1;
+  padding: 0.75rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 4px;
+  margin-right: 0.5rem;
   font-size: 1rem;
-  border: 1px dashed #c8d4e0;
+}
+
+.chat-input:focus {
+  outline: none;
+  border-color: #1976d2;
+}
+
+.send-button {
+  padding: 0.75rem 1.5rem;
+  background: #1976d2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
+  transition: background-color 0.2s;
+}
+
+.send-button:hover:not(:disabled) {
+  background: #1565c0;
+}
+
+.send-button:disabled {
+  background: #b0bec5;
+  cursor: not-allowed;
 }
 </style>

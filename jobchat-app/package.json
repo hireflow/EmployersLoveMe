@@ -8,6 +8,7 @@
     "lint": "vue-cli-service lint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
     "@mdi/js": "^7.4.47",
     "@oku-ui/motion": "^0.4.3",
     "axios": "^1.8.4",

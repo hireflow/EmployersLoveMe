@@ -42,17 +42,23 @@ exports.checkCandidateEmailExists = onCall(async (request) => {
 });
 
 exports.setCandidateProfile = onCall(async (request) => {
-  const { uid, email, resumeUrl, name, phone, applications } = request.data;
+  const { email, password, resumeUrl, name, phone, applications } = request.data;
 
   // Validate inputs
-  if (!uid || !email || !name) {
+  if (!email || !password) {
     throw new HttpsError(
       "invalid-argument",
-      "Missing required fields: id, name, and email are required."
+      "Missing required fields: email and password are required."
     );
   }
 
   try {
+
+    const candidateRecord = await admin.auth().createUser({
+      email: email,
+      password: password,
+    });
+    
 
     // Create candidate document
     const candidateData = {
@@ -68,10 +74,14 @@ exports.setCandidateProfile = onCall(async (request) => {
     // Add to Firestore
     const candidatesRef = admin.firestore().collection('candidates');
 
-    await candidatesRef.doc(uid).set(candidateData);
+    await candidatesRef.doc(candidateRecord.uid).set(candidateData);
 
     return {
       success: true,
+      candidate: {
+        uid: candidateRecord.uid,
+        email: candidateRecord.email,  
+      },
     };
   } catch (error) {
     console.error('Error registering candidate:', error);
