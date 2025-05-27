@@ -1,4 +1,5 @@
 <script setup>
+/*eslint-disable*/ 
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { watch, onMounted, ref, defineAsyncComponent } from "vue";
 import { useAuthStore } from "@/stores/auth";
@@ -343,6 +344,25 @@ const updateChatbotSettings = async (settings) => {
   }
 };
 
+const copyToClipboard = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    successMessage.value = "Link copied to clipboard!";
+    setTimeout(() => {
+      successMessage.value = "";
+    }, 2000);
+  } catch (err) {
+    errorMessage.value = "Failed to copy link";
+    setTimeout(() => {
+      errorMessage.value = "";
+    }, 2000);
+  }
+};
+
+const openInNewTab = (url) => {
+  window.open(url, '_blank');
+};
+
 const JobForm = defineAsyncComponent(() =>
   import("@/components/features/JobForm.vue")
 );
@@ -356,397 +376,352 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
 
 <template>
   <SideBarLayout>
-    <div class="job-dashboard">
-    <div class="dashboard-header">
-      <h1>Jobs for {{ authStore.orgs.find(org => org.id === currentOrgId)?.companyName || "your organization" }}</h1>
-      <button
-        @click="toggleJobForm"
-        class="create-button"
-        :disabled="!currentOrgId"
-      >
-        {{ showJobForm ? "Cancel" : "Create New Job" }}
-      </button>
-    </div>
-
-    <div class="dashboard-messages">
-      <div v-if="errorMessage" class="error-message">
-        {{ errorMessage }}
-      </div>
-      <div v-if="successMessage" class="success-message">
-        {{ successMessage }}
-      </div>
-    </div>
-
-    <div class="dashboard-content">
-      <ErrorBoundary>
-        <Suspense>
-          <template #default>
-            <JobForm
-              v-if="showJobForm"
-              @submit="createNewJob"
-              @cancel="toggleJobForm"
-            />
-          </template>
-          <template #fallback>
-            <LoadingSpinner message="Loading job form..." />
-          </template>
-        </Suspense>
-      </ErrorBoundary>
-
-      <div v-if="!showJobForm" class="jobs-section">
-        <div class="section-header">
-          <h2>Current Jobs</h2>
-          <p v-if="!currentOrgId" class="no-jobs-message">
-            Please select an organization to see jobs.
-          </p>
-          <p
-            v-else-if="jobs.length === 0 && !errorMessage"
-            class="no-jobs-message"
-          >
-            No jobs found for this organization.
-          </p>
-        </div>
-
-        <div
-          class="jobs-grid"
-          v-if="currentOrgId && jobs.length > 0"
+    <!-- Main Content -->
+    <div class="dashboard-container">
+      <!-- Page Header -->
+      <div class="page-header">
+        <h1 class="page-title">Jobs for {{ authStore.orgs.find(org => org.id === currentOrgId)?.companyName || "Company Name Not Found" }}</h1>
+        <button
+          @click="toggleJobForm"
+          class="btn btn-primary add-btn"
+          :disabled="!currentOrgId"
         >
-          <div v-for="job in jobs" :key="job.id" class="job-card">
-            <div class="job-card-header">
-              <h3>{{ job.jobTitle || "N/A" }}</h3>
-              <span class="job-department">{{
-                job.jobDepartment || "N/A"
-              }}</span>
-            </div>
+          {{ showJobForm ? "Cancel" : "+ Add Job" }}
+        </button>
+      </div>
 
-            <div class="job-card-content">
-              <div class="job-info">
-                <div class="info-item">
-                  <span class="label">Location:</span>
-                  <span class="value">{{ job.jobLocation || "N/A" }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">Team Size:</span>
-                  <span class="value">{{ job.teamSize || "N/A" }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">Status:</span>
-                  <span class="value">{{ job.status || "N/A" }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">Deadline:</span>
-                  <span class="value">{{
-                    formatTimestamp(job.applicationDeadline)
-                  }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">Job Type:</span>
-                  <span class="value">{{ job.jobType || "N/A" }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">Salary:</span>
-                  <span class="value">{{ job.jobSalary || "N/A" }}</span>
-                </div>
-                <div class="info-item">
-                  <span class="label">Interview Stages:</span>
-                  <span class="value">{{ job.interviewStages || "N/A" }}</span>
-                </div>
+      <!-- Alerts Section -->
+      <div class="alerts-container">
+        <div v-if="errorMessage" class="alert alert-error">
+          <p>{{ errorMessage }}</p>
+        </div>
+        <div v-if="successMessage" class="alert alert-success">
+          <p>{{ successMessage }}</p>
+        </div>
+      </div>
+
+      <div class="dashboard-content">
+        <ErrorBoundary>
+          <Suspense>
+            <template #default>
+              <JobForm
+                v-if="showJobForm"
+                :onSubmit="createNewJob"
+                :onClose="toggleJobForm"
+              />
+            </template>
+            <template #fallback>
+              <LoadingSpinner message="Loading Job Form..."/>
+            </template>
+          </Suspense>
+        </ErrorBoundary>
+      
+        <div v-if="!showJobForm" class="jobs-section">
+          <div class="section-header">
+            <h2>Current Jobs</h2>
+            <p v-if="jobs.length === 0 && !errorMessage" class="no-jobs-message">
+              No jobs found for this organization.
+            </p>
+          </div>
+
+          <!-- Jobs Grid -->
+          <div v-if="currentOrgId && jobs.length > 0" class="jobs-grid">
+            <!-- Job Cards -->
+            <div v-for="job in jobs" :key="job.id" class="job-card">
+              <div class="job-card-header">
+                <h3 class="job-title">{{ job.jobTitle || "N/A" }}</h3>
+                <span class="job-department">{{ job.jobDepartment || "N/A" }}</span>
               </div>
 
-              <div class="job-details-section">
-                <h4>Details:</h4>
-                <div class="detail-item">
-                  <span class="label">Required Skills:</span>
-                  <p class="value-paragraph">
-                    {{ job.requiredSkills || "N/A" }}
-                  </p>
+              <div class="job-card-body">
+                <div class="job-info">
+                  <div class="info-item">
+                    <span class="label">Location:</span>
+                    <span class="value">{{ job.jobLocation || "N/A" }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="label">Team Size:</span>
+                    <span class="value">{{ job.teamSize || "N/A" }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="label">Status:</span>
+                    <span class="value">{{ job.status || "N/A" }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="label">Deadline:</span>
+                    <span class="value">{{ formatTimestamp(job.applicationDeadline) }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="label">Job Type:</span>
+                    <span class="value">{{ job.jobType || "N/A" }}</span>
+                  </div>
+                  <div class="info-item">
+                    <span class="label">Salary:</span>
+                    <span class="value">{{ job.jobSalary || "N/A" }}</span>
+                  </div>
                 </div>
-                <div class="detail-item">
-                  <span class="label">Preferred Skills:</span>
-                  <p class="value-paragraph">
-                    {{ job.preferredSkills || "N/A" }}
-                  </p>
+
+                <div class="important-updates">
+                  <h4>Application Link</h4>
+                  <div class="link-container">
+                    <p class="application-link">{{ `http://localhost:8080/applications/${currentOrgId}/${job.id}` }}</p>
+                    <div class="link-actions">
+                      <button 
+                        @click="copyToClipboard(`http://localhost:8080/applications/${currentOrgId}/${job.id}`)" 
+                        class="btn btn-outline btn-sm center"
+                        title="Copy link"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        Copy
+                      </button>
+                      <button 
+                        @click="openInNewTab(`http://localhost:8080/applications/${currentOrgId}/${job.id}`)" 
+                        class="btn btn-outline2 btn-sm center"
+                        title="Open in new tab"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                          <polyline points="15 3 21 3 21 9"></polyline>
+                          <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                        Go to
+                      </button>
+                    </div>
+                  </div>
                 </div>
-                <div class="detail-item">
-                  <span class="label">Required Education:</span>
-                  <p class="value-paragraph">
-                    {{ job.requiredEducation || "N/A" }}
-                  </p>
-                </div>
-                <div class="detail-item">
-                  <span class="label">Required Certifications:</span>
-                  <p class="value-paragraph">
-                    {{ job.requiredCertifications || "N/A" }}
-                  </p>
-                </div>
-                <div class="detail-item">
-                  <span class="label">Tech Stack:</span>
-                  <p class="value-paragraph">{{ job.techStack || "N/A" }}</p>
-                </div>
-                <div class="detail-item">
-                  <span class="label">Travel Requirements:</span>
-                  <p class="value-paragraph">
-                    {{ job.travelRequirements || "N/A" }}
-                  </p>
-                </div>
-                <div class="detail-item" v-if="job.candidateResourceLinks">
-                  <span class="label">Candidate Resources:</span>
-                  <p class="value-paragraph">
-                    {{ job.candidateResourceLinks }}
-                  </p>
+
+                <div class="job-actions">
+                  <button @click="openEditModal(job)" class="btn btn-outline btn-sm">
+                    Edit
+                  </button>
+                  <button @click="openChatbotModal(job)" class="btn btn-outline2 btn-sm">
+                    Config
+                  </button>
+                  <button @click="openDeleteConfirmation(job)" class="btn btn-outline btn-sm">
+                    Delete
+                  </button>
                 </div>
               </div>
-
-              <div class="job-description-section">
-                <h4>Job Description:</h4>
-                <p>{{ job.jobDescription || "No description provided." }}</p>
-              </div>
-
-              <div class="job-meta">
-                <div class="info-item">
-                  <span class="label">Posted:</span>
-                  <span class="value">{{
-                    formatTimestamp(job.createdAt)
-                  }}</span>
-                </div>
-              </div>
-
-              <div>
-                {{
-                  `http://localhost:8080/applications/${currentOrgId}/${job.id}`
-                }}
-              </div>
-            </div>
-
-            <div class="job-card-actions">
-              <button @click="openEditModal(job)" class="action-button">
-                Edit Details
-              </button>
-              <button @click="openChatbotModal(job)" class="action-button">
-                Edit Config
-              </button>
-              <button @click="openDeleteConfirmation(job)" class="action-button delete">
-                Delete
-              </button>
             </div>
           </div>
         </div>
       </div>
     </div>
+  </SideBarLayout>
 
-    <ErrorBoundary>
-      <Suspense>
-        <template #default>
-          <JobEditModal
-            v-if="showEditModal"
-            :show="showEditModal"
-            :job="selectedJob"
-            @submit="updateJob"
-            @close="closeEditModal"
-          />
-        </template>
-        <template #fallback>
-          <LoadingSpinner message="Loading edit form..." />
-        </template>
-      </Suspense>
-    </ErrorBoundary>
+  <!-- Edit Modal -->
+  <ErrorBoundary>
+    <Suspense>
+      <template #default>
+        <JobEditModal
+          v-if="showEditModal"
+          :show="showEditModal"
+          :job="selectedJob"
+          @submit="updateJob"
+          @close="closeEditModal"
+        />
+      </template>
+      <template #fallback>
+        <LoadingSpinner message="Loading edit form..." />
+      </template>
+    </Suspense>
+  </ErrorBoundary>
 
-    <ErrorBoundary>
-      <Suspense>
-        <template #default>
-          <ChatbotConfigModal
-            v-if="showChatbotModal"
-            :show="showChatbotModal"
-            :job="selectedJob"
-            @submit="updateChatbotSettings"
-            @close="closeChatbotModal"
-          />
-        </template>
-        <template #fallback>
-          <LoadingSpinner message="Loading chatbot settings..." />
-        </template>
-      </Suspense>
-    </ErrorBoundary>
+  <!-- Chatbot Config Modal -->
+  <ErrorBoundary>
+    <Suspense>
+      <template #default>
+        <ChatbotConfigModal
+          v-if="showChatbotModal"
+          :show="showChatbotModal"
+          :job="selectedJob"
+          @submit="updateChatbotSettings"
+          @close="closeChatbotModal"
+        />
+      </template>
+      <template #fallback>
+        <LoadingSpinner message="Loading chatbot settings..." />
+      </template>
+    </Suspense>
+  </ErrorBoundary>
 
-    <!-- Delete Confirmation Modal -->
-    <div v-if="showDeleteConfirmation" class="modal-overlay">
-      <div class="confirmation-modal">
-        <div class="confirmation-header">
-          <h3>Confirm Deletion</h3>
-        </div>
-        <div class="confirmation-content">
-          <p>Are you sure you want to delete the job: <strong>{{ selectedJob?.jobTitle }}</strong>?</p>
-          <p class="warning-text">This action cannot be undone!</p>
-        </div>
-        <div class="confirmation-actions">
-          <button @click="closeDeleteConfirmation" class="action-button secondary">
-            Cancel
-          </button>
-          <button @click="deleteJob" class="action-button delete">
-            Delete
-          </button>
-        </div>
+  <!-- Delete Confirmation Modal -->
+  <div v-if="showDeleteConfirmation" class="modal-overlay">
+    <div class="confirmation-modal">
+      <div class="confirmation-header">
+        <h3>Confirm Deletion</h3>
+      </div>
+      <div class="confirmation-content">
+        <p>Are you sure you want to delete the job: <strong>{{ selectedJob?.jobTitle }}</strong>?</p>
+        <p class="warning-text">This action cannot be undone!</p>
+      </div>
+      <div class="confirmation-actions">
+        <button @click="closeDeleteConfirmation" class="btn btn-secondary">
+          Cancel
+        </button>
+        <button @click="deleteJob" class="btn btn-danger">
+          Delete
+        </button>
       </div>
     </div>
-    </div>
-  </SideBarLayout>
+  </div>
 </template>
 
 <style scoped>
-.job-dashboard {
+.dashboard-container {
   max-width: 1200px;
   margin: 0 auto;
-  padding: 2rem;
-  font-family: sans-serif;
+  padding: 20px;
 }
 
-.dashboard-header {
+.page-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 2rem;
+  margin-bottom: 24px;
 }
 
-.dashboard-header h1 {
+.page-title {
+  font-size: 28px;
+  font-weight: 600;
+  color: #2d3748;
   margin: 0;
-  color: #2c3e50;
-  font-size: 2rem;
 }
 
-.dashboard-messages {
-  margin-bottom: 1.5rem;
+.add-btn {
+  padding: 8px 16px;
+  font-size: 14px;
 }
 
-.error-message,
-.success-message {
-  padding: 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
-  text-align: center;
+/* Alerts Section */
+.alerts-container {
+  margin-bottom: 20px;
 }
 
-.error-message {
-  background-color: #ffebee;
-  color: #c62828;
-  border: 1px solid #ef9a9a;
+.alert {
+  padding: 15px;
+  border-radius: 4px;
+  margin-bottom: 15px;
 }
 
-.success-message {
-  background-color: #e8f5e9;
-  color: #2e7d32;
-  border: 1px solid #a5d6a7;
+.alert-error {
+  background-color: #fde8e8;
+  border-left: 4px solid #f56565;
+  color: #c53030;
 }
 
-.create-button {
-  background-color: #1976d2;
-  color: white;
-  padding: 0.75rem 1.5rem;
-  border: none;
-  border-radius: 6px;
-  font-size: 1rem;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background-color 0.3s ease, opacity 0.3s ease;
-}
-
-.create-button:hover {
-  background-color: #1565c0;
-}
-
-.create-button:disabled {
-  background-color: #cccccc;
-  cursor: not-allowed;
-  opacity: 0.7;
+.alert-success {
+  background-color: #e6fffa;
+  border-left: 4px solid #38b2ac;
+  color: #2c7a7b;
 }
 
 .dashboard-content {
   background-color: #f8f9fa;
   border-radius: 12px;
   padding: 2rem;
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.jobs-section {
+  margin-top: 1rem;
 }
 
 .section-header {
   margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .section-header h2 {
   color: #2c3e50;
   margin: 0 0 0.5rem 0;
   font-size: 1.5rem;
+  font-weight: 600;
 }
 
 .no-jobs-message {
   color: #6c757d;
   font-style: italic;
-  padding: 1rem;
-  background-color: #e9ecef;
-  border-radius: 6px;
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
   text-align: center;
+  border: 1px dashed #dee2e6;
+  margin: 1rem 0;
 }
 
 .jobs-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
-  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 24px;
+  margin-top: 1.5rem;
 }
 
 .job-card {
-  background: white;
+  background-color: white;
   border-radius: 8px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
   overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  transition: all 0.2s ease-in-out;
+  border: 1px solid #e2e8f0;
+  position: relative;
   display: flex;
   flex-direction: column;
 }
 
 .job-card:hover {
-  transform: translateY(-3px);
-  box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+  transform: translateY(-4px);
+  box-shadow: 0 10px 15px rgba(0, 0, 0, 0.1);
 }
 
 .job-card-header {
-  padding: 1.5rem;
-  background-color: #eef1f5; /* Lighter header */
-  border-bottom: 1px solid #dee2e6;
+  padding: 16px;
+  border-bottom: 1px solid #e2e8f0;
+  background-color: #f7fafc;
 }
 
-.job-card-header h3 {
-  margin: 0 0 0.5rem 0;
-  color: #1976d2;
-  font-size: 1.3rem;
+.job-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: #2d3748;
 }
 
 .job-department {
   color: #495057;
   font-size: 0.9rem;
   font-weight: 500;
+  display: block;
+  margin-top: 4px;
 }
 
-.job-card-content {
-  padding: 1.5rem;
-  flex-grow: 1; /* Allows content to take up space */
-}
-
-.job-info {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1rem;
-  margin-bottom: 1.5rem;
-}
-
-.info-item {
+.job-card-body {
+  padding: 16px;
+  position: relative;
+  flex-grow: 1;
   display: flex;
   flex-direction: column;
 }
 
+.job-info {
+  margin-bottom: 16px;
+}
+
+.info-item {
+  margin-bottom: 8px;
+}
+
 .label {
+  font-weight: 500;
+  color: #718096;
   font-size: 0.8rem;
-  color: #6c757d; /* Subtler label color */
-  margin-bottom: 0.25rem;
-  text-transform: uppercase; /* Optional: makes labels stand out */
-  font-weight: 600;
+  text-transform: uppercase;
+  display: block;
+  margin-bottom: 2px;
 }
 
 .value {
@@ -755,98 +730,143 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
   font-size: 0.95rem;
 }
 
-.job-details-section,
-.job-description-section {
-  margin-top: 1.5rem;
+.important-updates {
+  background-color: #ebf4ff;
+  padding: 12px;
+  border-radius: 6px;
+  margin-bottom: 16px;
+  flex-grow: 1;
 }
 
-.job-details-section h4,
-.job-description-section h4 {
-  color: #343a40;
-  font-size: 1.1rem;
-  margin-bottom: 0.75rem;
-  border-bottom: 1px solid #e9ecef;
-  padding-bottom: 0.5rem;
+.important-updates h4 {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2b6cb0;
+  margin: 0 0 8px 0;
 }
 
-.detail-item {
-  margin-bottom: 1rem; /* Increased spacing */
-}
-
-.value-paragraph {
-  font-weight: normal;
-  color: #495057;
-  font-size: 0.95rem;
-  line-height: 1.6;
-  margin-top: 0.25rem;
-  white-space: pre-wrap;
-}
-
-.job-description-section p {
-  color: #495057;
-  font-size: 0.95rem;
-  line-height: 1.6;
-  white-space: pre-wrap;
-}
-
-.job-meta {
-  margin-top: 1.5rem;
-  padding-top: 1rem;
-  border-top: 1px solid #e9ecef;
-  font-size: 0.85rem;
-  color: #6c757d;
-}
-
-.job-meta .info-item {
-  display: flex; /* Align label and value on the same line if desired */
-  justify-content: space-between;
-  align-items: center;
-}
-.job-meta .label {
-  margin-bottom: 0; /* Adjust if label and value are on the same line */
-}
-
-.job-card-actions {
-  padding: 1rem 1.5rem;
-  background-color: #f8f9fa;
-  border-top: 1px solid #e9ecef;
+.link-container {
   display: flex;
-  gap: 1rem;
-  justify-content: flex-end;
-  margin-top: auto; /* Pushes actions to the bottom */
+  flex-direction: column;
+  gap: 8px;
 }
 
-.action-button {
-  background-color: #1976d2;
-  color: white;
-  padding: 0.6rem 1.2rem; /* Slightly adjusted padding */
+.application-link {
+  font-size: 13px;
+  color: #4a5568;
+  margin: 0;
+  word-break: break-all;
+  background-color: #f8f9fa;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.link-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 1px;
+}
+
+.job-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.btn-outline, .btn-outline2 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 1rem;
+  }
+
+  .page-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .jobs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .job-card {
+    margin-bottom: 1rem;
+  }
+
+  .section-header {
+    margin-bottom: 1.5rem;
+  }
+}
+
+/* Button Styles */
+.btn {
+  padding: 8px 16px;
   border: none;
   border-radius: 4px;
-  font-size: 0.9rem;
+  font-size: 14px;
   cursor: pointer;
-  transition: background-color 0.3s ease;
+  font-weight: 500;
+  transition: all 0.2s;
 }
 
-.action-button:hover {
-  background-color: #1565c0;
+.btn-primary {
+  background-color: #3b82f6;
+  color: white;
 }
 
-/* Additional style for alternative action button if needed */
-.action-button.secondary {
-  background-color: #6c757d;
-}
-.action-button.secondary:hover {
-  background-color: #5a6268;
+.btn-primary:hover {
+  background-color: #2563eb;
 }
 
-.action-button.delete {
-  background-color: #dc3545;
-}
-.action-button.delete:hover {
-  background-color: #c82333;
+.btn-primary:disabled {
+  background-color: #bfdbfe;
+  cursor: not-allowed;
 }
 
-/* Modal styling for delete confirmation */
+.btn-outline {
+  background-color: transparent;
+  color: #e53e3e;
+  border: 1px solid #e53e3e;
+}
+
+.btn-outline2 {
+  background-color: transparent;
+  color: rgb(10, 200, 10);
+  border: 1px solid #00d953;
+}
+
+.btn-outline:hover {
+  background-color: #fdf2f2;
+}
+
+.btn-outline2:hover {
+  background-color: #f0fff4;
+}
+
+.btn-sm {
+  padding: 4px 10px;
+  font-size: 12px;
+}
+
+/* Modal Styles */
 .modal-overlay {
   position: fixed;
   top: 0;
@@ -900,37 +920,27 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
   gap: 1rem;
 }
 
-@media (max-width: 768px) {
-  .job-dashboard {
-    padding: 1rem;
-  }
+.btn-secondary {
+  background-color: #6c757d;
+  color: white;
+}
 
-  .dashboard-header {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: flex-start;
-  }
+.btn-secondary:hover {
+  background-color: #5a6268;
+}
 
-  .dashboard-header h1 {
-    font-size: 1.75rem;
-  }
+.btn-danger {
+  background-color: #dc3545;
+  color: white;
+}
 
-  .jobs-grid {
-    grid-template-columns: 1fr; /* Single column on smaller screens */
-  }
+.btn-danger:hover {
+  background-color: #c82333;
+}
 
-  .job-card-content {
-    padding: 1rem;
-  }
-  .job-card-header {
-    padding: 1rem;
-  }
-  .job-card-actions {
-    padding: 1rem;
-  }
-  .confirmation-modal {
-    width: 95%;
-    margin: 0 1rem;
-  }
+.center {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>

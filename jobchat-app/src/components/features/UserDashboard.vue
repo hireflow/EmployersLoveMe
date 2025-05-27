@@ -1,11 +1,9 @@
 <script setup>
-
-
 import { useAuthStore } from "@/stores/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
 import { ref, computed } from "vue";
 import { RouterLink } from 'vue-router';
-import JobDashboard from "./JobDashboard.vue";
+// import JobDashboard from "./JobDashboard.vue";
 import SideBarLayout from "../layouts/SideBarLayout.vue";
 
 const authStore = useAuthStore();
@@ -188,7 +186,7 @@ const toggleForm = () => {
 
 <template>
   <SideBarLayout>
-    <!-- Main Content Area -->
+    <!-- Main Content -->
     <div class="dashboard-container">
       <!-- Page Header -->
       <div class="page-header">
@@ -252,7 +250,7 @@ const toggleForm = () => {
                 Delete
               </button>
               <RouterLink 
-                to="`/${authStore?.selectedOrg?.id}/${job.id}`" 
+                :to="`/${org.id}/jobs`" 
                 class="btn btn-outline2 btn-sm">
                 View Jobs
               </RouterLink>
@@ -365,7 +363,7 @@ const toggleForm = () => {
         </div>
       </div>
 
-      <JobDashboard v-if="authStore.selectedOrg" />
+      <!-- <JobDashboard v-if="authStore.selectedOrg" /> -->
 
       <!-- Delete Confirmation Modal -->
       <div v-if="showDeleteConfirmation" class="modal-overlay">
@@ -515,7 +513,7 @@ const toggleForm = () => {
 .org-card {
   background-color: white;
   border-radius: 8px;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   overflow: hidden;
   transition: all 0.2s ease-in-out;
   border: 1px solid #e2e8f0;

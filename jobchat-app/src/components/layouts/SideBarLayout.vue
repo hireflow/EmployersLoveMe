@@ -49,18 +49,24 @@ const logoutAction = async () => {
           </RouterLink>
         </div>
 
-        <div class="sidebar-section">
+        <!-- <div class="sidebar-section">
+          <RouterLink to="" class="section-title">
+            Jobs
+          </RouterLink>
+        </div> -->
+
+        <!-- <div class="sidebar-section">
           <RouterLink to="/candidate-login" class="section-title">
             Candidate Login
           </RouterLink>
-        </div>
+        </div> -->
 
         <!-- TODO: CREATE APPLICATIONS PAGE TO TRACK ALL APPLICATIONS FOR JOB POSTING -->
-        <div class="sidebar-section">
+        <!-- <div class="sidebar-section">
           <RouterLink to="" class="section-title">
             Applications
           </RouterLink>
-        </div>
+        </div> -->
       </nav>
 
       <!-- Bottom: Logout -->
