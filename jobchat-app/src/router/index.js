@@ -39,7 +39,7 @@ const routes = [
     path: "/applications/:orgId/:jobId",
     name: "ApplicationDetails",
     component: () => import("@/components/features/ApplicationDetails.vue"),
-    meta: { requiresCandidateAuth: true },
+    meta: { requiresCandidateAuth: true, role: 'candidate' },
   },
   {
     path: "/candidate-login",
