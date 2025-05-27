@@ -1,41 +1,38 @@
-const { onCall } = require("firebase-functions/v2/https");
+const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
-const { HttpsError } = require("firebase-functions/v2/https");
+// admin.initializeApp() // Make sure admin is initialized, typically in your main index.js if not here.
 const db = admin.firestore();
+
+// Ensure admin is initialized if not done elsewhere
+if (admin.apps.length === 0) {
+  admin.initializeApp();
+}
 
 exports.createJob = onCall(async (request) => {
   try {
     const data = request.data;
     console.log(request.data);
 
-    // Validate required fields
     if (
       !data.orgId ||
-      !Array.isArray(data.hiringManagerIds) ||
+      !Array.isArray(data.hiringManagerIds) || // This is the input param name, that's fine
       data.hiringManagerIds.length === 0 ||
       !data.jobTitle ||
       !data.jobDescription
     ) {
-      console.log(
-        !data.orgId,
-        data.hiringManagerIds.length === 0,
-        !data.jobTitle,
-        !data.jobDescription
-      );
       throw new HttpsError(
         "invalid-argument",
         "Missing required fields: orgId, hiringManagerIds, jobTitle, or jobDescription"
       );
     }
 
-    // Create a new job document
     const jobRef = admin.firestore().collection("jobs").doc();
     const createdAt = admin.firestore.Timestamp.now();
     const jobData = {
       jobTitle: data.jobTitle,
       applicationDeadline: data.applicationDeadline || "",
       applications: [],
-      hiringManagerIds: data.hiringManagerIds,
+      hiringManagerIds: data.hiringManagerIds, // Storing IDs of managers for this job
       orgId: data.orgId,
       requiredEducation: data.requiredEducation || "",
       requiredCertifications: data.requiredCertifications || "",
@@ -56,10 +53,8 @@ exports.createJob = onCall(async (request) => {
       status: "active",
     };
 
-    // Create the job document
     await jobRef.set(jobData);
 
-    // Add the job to the org's jobs array
     const orgRef = admin.firestore().collection("orgs").doc(data.orgId);
     const orgDoc = await orgRef.get();
 
@@ -68,7 +63,7 @@ exports.createJob = onCall(async (request) => {
     }
 
     await orgRef.update({
-      jobIds: admin.firestore.FieldValue.arrayUnion(jobRef.id),
+      jobs: admin.firestore.FieldValue.arrayUnion(jobRef.id), // Using 'jobs' as per schema
     });
 
     return {
@@ -81,7 +76,7 @@ exports.createJob = onCall(async (request) => {
     if (error instanceof HttpsError) {
       throw error;
     }
-    throw new HttpsError("internal", "Error creating job");
+    throw new HttpsError("internal", "Error creating job", error.message);
   }
 });
 
@@ -98,39 +93,31 @@ exports.getJobsByOrgId = onCall(async (request) => {
     const jobsCollection = admin.firestore().collection("jobs");
 
     const orgDoc = await orgsCollection.doc(orgId).get();
-    let jobIds = [];
+    let jobIdsFromOrg = []; // Renamed to avoid confusion with param name
     if (orgDoc.exists) {
       const data = orgDoc.data();
-      if (data && data.jobIds && Array.isArray(data.jobIds)) {
-        jobIds = data.jobIds;
+      if (data && data.jobs && Array.isArray(data.jobs)) {
+        // Using 'jobs' as per schema
+        jobIdsFromOrg = data.jobs;
       }
     }
 
-    if (jobIds.length === 0) {
+    if (jobIdsFromOrg.length === 0) {
       console.log("No jobs found for orgID: ", orgId);
       return {
         success: true,
         data: [],
       };
     }
-    // get each ref that pertains to each id in jobIds
 
-    // right now jobIds looks like -> [1ZotxmT8Ski3yU6zctad, AfZh9ucHJ6S0cpFBMnDy] which is just Ids, not the object, on the frontend we would
-    // need to either fetch again or do it here so lets do it here
-    const jobDocRefs = jobIds.map((id) => jobsCollection.doc(id));
-
-    // fetch all job documents using getAll()
-    // getAll takes a spread array of document references
+    const jobDocRefs = jobIdsFromOrg.map((id) => jobsCollection.doc(id));
     const jobDocSnapshots = await admin.firestore().getAll(...jobDocRefs);
-
-    // process now
 
     const populatedJobs = jobDocSnapshots
       .map((docSnapshot) => {
         if (docSnapshot.exists) {
           return { id: docSnapshot.id, ...docSnapshot.data() };
         } else {
-          // job id is in jobIds but doesnt exist in our db
           console.warn(`Job document with ID ${docSnapshot.id} not found.`);
           return null;
         }
@@ -139,7 +126,7 @@ exports.getJobsByOrgId = onCall(async (request) => {
 
     return {
       success: true,
-      jobIds,
+      // jobIds: jobIdsFromOrg, // if client expects the raw IDs list
       data: populatedJobs,
     };
   } catch (error) {
@@ -199,7 +186,7 @@ exports.deleteJobById = onCall(async (request) => {
     const batch = admin.firestore().batch();
 
     batch.update(orgRef, {
-      jobs: admin.firestore.FieldValue.arrayRemove(jobId),
+      jobs: admin.firestore.FieldValue.arrayRemove(jobId), // Using 'jobs' as per schema
     });
 
     batch.delete(jobRef);
@@ -223,30 +210,6 @@ exports.deleteJobById = onCall(async (request) => {
   }
 });
 
-exports.addNewJobIdToOrg = onCall(async (request) => {
-  const { newJobId, orgId } = request.data;
-  const orgRef = admin.firestore().collection("orgs").doc(orgId);
-
-  const orgDoc = await orgRef.get();
-  if (!orgDoc.exists) {
-    throw new HttpsError("not-found", "Organization not found.");
-  }
-  const jobs = orgDoc.data().jobIds || []; // Default to empty array
-
-  if (!jobs.includes(newJobId)) {
-    await orgRef.update({
-      jobIds: [...jobs, newJobId],
-    });
-  } else {
-    throw new HttpsError("already-exists", "Job already exists in org");
-  }
-
-  return {
-    success: true,
-    message: "Jobs updated successfully",
-  };
-});
-
 exports.createOrg = onCall(async (request) => {
   const data = request.data;
 
@@ -254,11 +217,10 @@ exports.createOrg = onCall(async (request) => {
     if (!data.companyName || !data.userId) {
       throw new HttpsError(
         "invalid-argument",
-        "Missing required fields for organization creation"
+        "Missing required fields for organization creation (companyName, userId)"
       );
     }
 
-    // Check if an org with this name already exists
     const existingOrg = await admin
       .firestore()
       .collection("orgs")
@@ -272,63 +234,205 @@ exports.createOrg = onCall(async (request) => {
       );
     }
 
-    // Create the organization document
     const orgRef = admin.firestore().collection("orgs").doc();
     const createdAt = admin.firestore.Timestamp.now();
 
+    // Align with schema
     const orgData = {
-      companyDescription: data.companyDescription || "",
       companyName: data.companyName,
+      companyDescription: data.companyDescription || "",
       companySize: data.companySize || "",
       createdAt: createdAt,
       industry: data.industry || "",
       location: data.location || "",
       logoUrl: data.logoUrl || "",
       missionStatement: data.missionStatement || "",
-      hiringManagerIds: [data.userId],
-      jobIds: data.jobIds || [],
-      paymentPlanCanceledDate: data.paymentPlanCanceledDate || "",
+      companyValues: data.companyValues || [], // From schema
+      workEnvironment: data.workEnvironment || {
+        // From schema, with defaults
+        techMaturity: "medium",
+        structure: "hybrid",
+        communication: "sync-first",
+        pace: "project-based",
+        growthExpectiations: "mentored",
+        collaboration: "departmental",
+        teamSize: "",
+      },
+      hiringManagers: [data.userId], // Schema: hiringManagers: array [userId]
+      jobs: [], // Schema: jobs: array [jobId], initially empty
+
+      paymentPlanCanceledDate: data.paymentPlanCanceledDate || null, // Use null for unset dates
       paymentPlanCanceledReason: data.paymentPlanCanceledReason || "",
-      paymentPlanEndDate: data.paymentPlanEndDate || "",
-      paymentPlanStartDate: data.paymentPlanStartDate || "",
+      paymentPlanEndDate: data.paymentPlanEndDate || null,
+      paymentPlanStartDate: data.paymentPlanStartDate || null,
       paymentPlanStatus: data.paymentPlanStatus || "",
       paymentPlanTier: data.paymentPlanTier || "",
       stripeCustomerId: data.stripeCustomerId || "",
       stripeSubscriptionId: data.stripeSubscriptionId || "",
     };
+    // Validate companyValues structure if necessary
+    if (Array.isArray(orgData.companyValues)) {
+      orgData.companyValues.forEach((cv) => {
+        if (
+          typeof cv.name !== "string" ||
+          typeof cv.description !== "string" ||
+          typeof cv.weight !== "number"
+        ) {
+          console.warn("Invalid companyValue structure:", cv);
+          // Potentially throw error or clean up
+        }
+      });
+    }
 
-    // Use a batch write to ensure both documents are created atomically
     const batch = admin.firestore().batch();
-
-    // Add the org document
     batch.set(orgRef, orgData);
 
-    // Add the hiring manager user document
     const userRef = admin.firestore().collection("users").doc(data.userId);
-
     batch.update(userRef, {
-      role: "hiring-manager",
+      role: "hiring-manager", // Or whatever role logic you have
       organizations: admin.firestore.FieldValue.arrayUnion(orgRef.id),
     });
 
-    // Commit the batch
     await batch.commit();
 
     return {
       success: true,
       orgId: orgRef.id,
-      hiringManagerIds: [data.userId],
       message: "Organization created successfully",
     };
   } catch (error) {
     console.error("Error creating organization:", error);
-
     if (error instanceof HttpsError) {
       throw error;
     }
     throw new HttpsError(
       "internal",
       error.message || "Error creating organization"
+    );
+  }
+});
+
+exports.updateOrg = onCall(async (request) => {
+  const { orgId, updates } = request.data;
+
+  try {
+    if (!orgId || !updates) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Missing required fields: orgId and updates object."
+      );
+    }
+
+    const orgRef = db.collection("orgs").doc(orgId);
+    const orgDoc = await orgRef.get();
+
+    if (!orgDoc.exists) {
+      throw new HttpsError(
+        "not-found",
+        `Organization with ID ${orgId} not found.`
+      );
+    }
+
+
+    const updateData = {};
+    const allowedFields = [
+      "companyName",
+      "companyDescription",
+      "companySize",
+      "industry",
+      "location",
+      "logoUrl",
+      "missionStatement",
+      "companyValues",
+      "workEnvironment",
+      // Add other fields from your schema that are user-editable but not payment/stripe related
+    ];
+
+    for (const key of allowedFields) {
+      if (updates.hasOwnProperty(key)) {
+        // Basic validation for companyValues structure before update
+        if (key === "companyValues") {
+          if (!Array.isArray(updates[key])) {
+            console.warn("companyValues update skipped: not an array");
+            continue; // Skip this update if malformed
+          }
+          // Ensure each item has the correct structure
+          updates[key] = updates[key]
+            .map((cv) => ({
+              name: typeof cv.name === "string" ? cv.name : "",
+              description:
+                typeof cv.description === "string" ? cv.description : "",
+              weight: typeof cv.weight === "number" ? cv.weight : 50,
+              // extractedKeywords: cv.extractedKeywords || [] // if you handle this
+            }))
+            .filter((cv) => cv.name || cv.description); // Filter out completely empty ones
+        }
+        // Basic validation for workEnvironment (ensure it's an object)
+        if (key === "workEnvironment") {
+          if (typeof updates[key] !== "object" || updates[key] === null) {
+            console.warn("workEnvironment update skipped: not an object");
+            continue;
+          }
+          // Ensure all nested properties exist to avoid Firestore errors with undefined
+          const defaultWorkEnv = {
+            techMaturity: "",
+            structure: "",
+            communication: "",
+            pace: "",
+            growthExpectiations: "",
+            collaboration: "",
+            teamSize: "",
+          };
+          updateData[key] = { ...defaultWorkEnv, ...updates[key] };
+        } else {
+          updateData[key] = updates[key];
+        }
+      }
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      throw new HttpsError(
+        "invalid-argument",
+        "No valid fields provided for update."
+      );
+    }
+
+    // Prevent updating companyName to one that already exists (excluding itself)
+    if (
+      updateData.companyName &&
+      updateData.companyName !== orgDoc.data().companyName
+    ) {
+      const existingOrg = await db
+        .collection("orgs")
+        .where("companyName", "==", updateData.companyName)
+        .limit(1)
+        .get();
+      if (!existingOrg.empty) {
+        // Check if the found org is not the current org
+        if (existingOrg.docs[0].id !== orgId) {
+          throw new HttpsError(
+            "already-exists",
+            "An organization with this name already exists."
+          );
+        }
+      }
+    }
+
+    await orgRef.update(updateData);
+
+    return {
+      success: true,
+      message: "Organization updated successfully.",
+    };
+  } catch (error) {
+    console.error(`Error updating organization ${orgId}:`, error);
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    throw new HttpsError(
+      "internal",
+      error.message ||
+        "An internal error occurred while updating the organization."
     );
   }
 });
@@ -340,7 +444,7 @@ exports.deleteOrg = onCall(async (request) => {
     if (!orgId)
       throw new HttpsError("invalid-argument", "Missing required field orgId");
 
-    const orgRef = admin.firestore().collection("orgs").doc(orgId);
+    const orgRef = db.collection("orgs").doc(orgId);
     const orgDoc = await orgRef.get();
 
     if (!orgDoc.exists) {
@@ -348,34 +452,37 @@ exports.deleteOrg = onCall(async (request) => {
     }
 
     const orgData = orgDoc.data();
-    const jobIds = orgData.jobs || [];
-    const hiringManagerIds = orgData.hiringmanagerids || [];
 
-    const batch = admin.firestore().batch();
+    const jobIdsToDelete = orgData.jobs || []; // Using 'jobs' as per schema
+    const hiringManagerUserIds = orgData.hiringManagers || []; // Using 'hiringManagers'
+
+    const batch = db.batch(); // Use db.batch()
 
     // Delete job documents
-    jobIds.forEach((jobId) => {
-      const jobRef = db.collection("jobs").doc(jobId);
-      batch.delete(jobRef);
-    });
+    if (jobIdsToDelete.length > 0) {
+      const jobsQuery = await db
+        .collection("jobs")
+        .where(admin.firestore.FieldPath.documentId(), "in", jobIdsToDelete)
+        .get();
+      jobsQuery.docs.forEach((doc) => {
+        batch.delete(doc.ref);
+      });
+    }
 
     // Remove orgId from hiring managers' organizations array
-    hiringManagerIds.forEach((userId) => {
+    hiringManagerUserIds.forEach((userId) => {
       const userRef = db.collection("users").doc(userId);
       batch.update(userRef, {
         organizations: admin.firestore.FieldValue.arrayRemove(orgId),
       });
     });
 
-    // Delete the org document
     batch.delete(orgRef);
-
-    // Commit the batch
     await batch.commit();
 
     return {
       success: true,
-      message: "Org and associated data deleted successfully",
+      message: "Organization and associated data deleted successfully",
     };
   } catch (error) {
     console.error("Error deleting org:", error);
@@ -392,45 +499,76 @@ exports.deleteOrg = onCall(async (request) => {
 
 exports.fetchUserOrgsById = onCall(async (request) => {
   const userId = request.data.userId;
-  console.log(userId);
+
+  if (!userId) {
+    throw new HttpsError("invalid-argument", "User ID is required.");
+  }
+
   try {
     const userRef = admin.firestore().collection("users").doc(userId);
     const userDoc = await userRef.get();
-    let userOrgs = [];
-    if (userDoc.exists) {
-      userOrgs = userDoc.data().organizations;
-    }
 
-    if (userOrgs.length === 0) {
+    if (!userDoc.exists) {
       return {
+        // Or throw HttpsError('not-found', 'User not found')
         success: false,
-        message: "No organizations found",
+        message: "User not found",
+        orgs: [],
       };
     }
 
-    const orgFetches = userOrgs.map((orgId) =>
+    const userData = userDoc.data();
+    const userOrgIds = userData.organizations || [];
+
+    if (userOrgIds.length === 0) {
+      return {
+        success: true, // Still a success, just no orgs
+        message: "No organizations found for this user.",
+        orgs: [],
+      };
+    }
+
+    const orgFetches = userOrgIds.map((orgId) =>
       admin.firestore().collection("orgs").doc(orgId).get()
     );
 
     const orgDocs = await Promise.all(orgFetches);
 
-    const orgData = orgDocs
+    const orgDataResult = orgDocs
       .filter((doc) => doc.exists)
       .map((doc) => {
         const data = doc.data();
         return {
           id: doc.id,
           ...data,
+          // Ensure all schema fields are present, even if null/default, for consistency on client
+          companyName: data.companyName || "",
+          companyDescription: data.companyDescription || "",
+          companySize: data.companySize || "",
+          createdAt: data.createdAt, // Should exist
+          industry: data.industry || "",
+          location: data.location || "",
+          logoUrl: data.logoUrl || "",
+          missionStatement: data.missionStatement || "",
+          companyValues: data.companyValues || [],
+          workEnvironment: data.workEnvironment || {}, // Client should handle defaults if needed
+          hiringManagers: data.hiringManagers || [],
+          jobs: data.jobs || [],
         };
       });
 
     return {
       success: true,
-      orgs: orgData,
+      orgs: orgDataResult,
     };
   } catch (error) {
-    console.error("Error fetching user:", error);
-    throw new HttpsError("internal", "Error fetching user");
+    console.error("Error fetching user organizations:", error);
+    if (error instanceof HttpsError) throw error;
+    throw new HttpsError(
+      "internal",
+      "Error fetching user organizations.",
+      error.message
+    );
   }
 });
 
@@ -453,9 +591,8 @@ exports.getPublicOrgDetails = onCall(async (request) => {
       );
     }
 
-    const orgData = orgDoc.data() || {}; // Use empty object as fallback if data() is null/undefined
+    const orgData = orgDoc.data() || {};
 
-    // Select only the fields safe for public/candidate view, providing defaults
     const publicOrgData = {
       id: orgDoc.id,
       companyName: orgData.companyName || "N/A",
@@ -463,10 +600,18 @@ exports.getPublicOrgDetails = onCall(async (request) => {
         orgData.companyDescription || "No description provided.",
       industry: orgData.industry || "N/A",
       location: orgData.location || "N/A",
-      logoUrl: orgData.logoUrl || "", // Default to empty string if no logo
+      logoUrl: orgData.logoUrl || "",
       missionStatement:
         orgData.missionStatement || "No mission statement provided.",
-      // Avoid sending sensitive data like paymentPlanStatus, stripeCustomerId, etc.
+      companyValues: orgData.companyValues || [], // Expose company values if desired
+      workEnvironment: {
+        // Expose non-sensitive parts of work environment
+        techMaturity: orgData.workEnvironment?.techMaturity || "N/A",
+        structure: orgData.workEnvironment?.structure || "N/A",
+        pace: orgData.workEnvironment?.pace || "N/A",
+        // Add other public-safe workEnvironment fields
+      },
+      // Do NOT include hiringManagers, payment info, stripe IDs, etc.
     };
 
     return {
@@ -474,21 +619,14 @@ exports.getPublicOrgDetails = onCall(async (request) => {
       organization: publicOrgData,
     };
   } catch (error) {
-    // Log the detailed error in Firebase Functions logs
-    console.error(
-      `Error fetching public org details for org ${orgId}. Raw error:`,
-      error
-    );
-
-    // If it's already an HttpsError, re-throw it
+    console.error(`Error fetching public org details for org ${orgId}:`, error);
     if (error instanceof HttpsError) {
       throw error;
     }
-    // For other errors, throw a generic HttpsError but include original message for server logs
     throw new HttpsError(
       "internal",
-      `An unexpected error occurred while fetching organization details for orgId: ${orgId}. Check server logs.`, // More specific message for client
-      error.message // Original error message for server-side logging context
+      `An unexpected error occurred while fetching organization details for orgId: ${orgId}.`,
+      error.message
     );
   }
 });

@@ -43,6 +43,7 @@ exports.fetchUserOrgsById = orgFunctions.fetchUserOrgsById;
 exports.deleteJobById = orgFunctions.deleteJobById;
 exports.deleteOrg = orgFunctions.deleteOrg;
 exports.getPublicOrgDetails = orgFunctions.getPublicOrgDetails;
+exports.updateOrg = orgFunctions.updateOrg;
 
 // candidate functions
 exports.checkCandidateEmailExists =
