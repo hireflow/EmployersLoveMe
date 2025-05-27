@@ -344,6 +344,25 @@ const updateChatbotSettings = async (settings) => {
   }
 };
 
+const copyToClipboard = async (text) => {
+  try {
+    await navigator.clipboard.writeText(text);
+    successMessage.value = "Link copied to clipboard!";
+    setTimeout(() => {
+      successMessage.value = "";
+    }, 2000);
+  } catch (err) {
+    errorMessage.value = "Failed to copy link";
+    setTimeout(() => {
+      errorMessage.value = "";
+    }, 2000);
+  }
+};
+
+const openInNewTab = (url) => {
+  window.open(url, '_blank');
+};
+
 const JobForm = defineAsyncComponent(() =>
   import("@/components/features/JobForm.vue")
 );
@@ -443,8 +462,35 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
                 </div>
 
                 <div class="important-updates">
-                  <h4>Job Description</h4>
-                  <p>{{ job.jobDescription || "No description provided." }}</p>
+                  <h4>Application Link</h4>
+                  <div class="link-container">
+                    <p class="application-link">{{ `http://localhost:8080/applications/${currentOrgId}/${job.id}` }}</p>
+                    <div class="link-actions">
+                      <button 
+                        @click="copyToClipboard(`http://localhost:8080/applications/${currentOrgId}/${job.id}`)" 
+                        class="btn btn-outline btn-sm center"
+                        title="Copy link"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                          <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                        </svg>
+                        Copy
+                      </button>
+                      <button 
+                        @click="openInNewTab(`http://localhost:8080/applications/${currentOrgId}/${job.id}`)" 
+                        class="btn btn-outline2 btn-sm center"
+                        title="Open in new tab"
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" class="icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                          <path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path>
+                          <polyline points="15 3 21 3 21 9"></polyline>
+                          <line x1="10" y1="14" x2="21" y2="3"></line>
+                        </svg>
+                        Go to
+                      </button>
+                    </div>
+                  </div>
                 </div>
 
                 <div class="job-actions">
@@ -580,30 +626,39 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
 
+.jobs-section {
+  margin-top: 1rem;
+}
+
 .section-header {
   margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e2e8f0;
 }
 
 .section-header h2 {
   color: #2c3e50;
   margin: 0 0 0.5rem 0;
   font-size: 1.5rem;
+  font-weight: 600;
 }
 
 .no-jobs-message {
   color: #6c757d;
   font-style: italic;
-  padding: 1rem;
-  background-color: #e9ecef;
-  border-radius: 6px;
+  padding: 1.5rem;
+  background-color: #f8f9fa;
+  border-radius: 8px;
   text-align: center;
+  border: 1px dashed #dee2e6;
+  margin: 1rem 0;
 }
 
-/* Jobs Grid */
 .jobs-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
   gap: 24px;
+  margin-top: 1.5rem;
 }
 
 .job-card {
@@ -614,6 +669,8 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
   transition: all 0.2s ease-in-out;
   border: 1px solid #e2e8f0;
   position: relative;
+  display: flex;
+  flex-direction: column;
 }
 
 .job-card:hover {
@@ -638,21 +695,20 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
   color: #495057;
   font-size: 0.9rem;
   font-weight: 500;
+  display: block;
+  margin-top: 4px;
 }
 
 .job-card-body {
   padding: 16px;
   position: relative;
+  flex-grow: 1;
+  display: flex;
+  flex-direction: column;
 }
 
 .job-info {
   margin-bottom: 16px;
-}
-
-.job-info p {
-  margin: 8px 0;
-  font-size: 14px;
-  color: #4a5568;
 }
 
 .info-item {
@@ -679,6 +735,7 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
   padding: 12px;
   border-radius: 6px;
   margin-bottom: 16px;
+  flex-grow: 1;
 }
 
 .important-updates h4 {
@@ -688,14 +745,28 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
   margin: 0 0 8px 0;
 }
 
-.important-updates p {
+.link-container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.application-link {
   font-size: 13px;
   color: #4a5568;
   margin: 0;
-  display: -webkit-box;
-  -webkit-line-clamp: 3;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
+  word-break: break-all;
+  background-color: #f8f9fa;
+  padding: 8px;
+  border-radius: 4px;
+  border: 1px solid #e2e8f0;
+}
+
+.link-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+  margin-top: 1px;
 }
 
 .job-actions {
@@ -703,6 +774,46 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
   justify-content: flex-end;
   gap: 8px;
   margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  margin-right: 4px;
+  vertical-align: middle;
+}
+
+.btn-outline, .btn-outline2 {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 1rem;
+  }
+
+  .page-header {
+    flex-direction: column;
+    gap: 1rem;
+    align-items: flex-start;
+  }
+
+  .jobs-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .job-card {
+    margin-bottom: 1rem;
+  }
+
+  .section-header {
+    margin-bottom: 1.5rem;
+  }
 }
 
 /* Button Styles */
@@ -753,22 +864,6 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
 .btn-sm {
   padding: 4px 10px;
   font-size: 12px;
-}
-
-@media (max-width: 768px) {
-  .dashboard-container {
-    padding: 1rem;
-  }
-
-  .page-header {
-    flex-direction: column;
-    gap: 1rem;
-    align-items: flex-start;
-  }
-
-  .jobs-grid {
-    grid-template-columns: 1fr;
-  }
 }
 
 /* Modal Styles */
@@ -841,5 +936,11 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
 
 .btn-danger:hover {
   background-color: #c82333;
+}
+
+.center {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
 }
 </style>
