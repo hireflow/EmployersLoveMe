@@ -1,17 +1,8 @@
-/**
- * Firebase Cloud Functions for public job data access.
- */
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
-const admin = require("firebase-admin"); // Assumes admin is initialized in main index.js
+const admin = require("firebase-admin");
 
 const db = admin.firestore();
 
-/**
- * Fetches publicly available details for a specific job.
- *
- * Expected request.data:
- * - jobId (string): ID of the job to fetch.
- */
 exports.getPublicJobDetails = onCall(async (request) => {
   const { jobId } = request.data;
 
@@ -30,25 +21,39 @@ exports.getPublicJobDetails = onCall(async (request) => {
 
     const jobData = jobDoc.data();
 
-    // Select only the fields safe for candidate view
-    // Exclude sensitive fields like internal notes, full list of hiringManagerIds and other sensitive stuff
+    // Select only the fields safe for candidate view, aligning with new schema
     const publicJobData = {
       id: jobDoc.id,
-      jobTitle: jobData.jobTitle,
-      jobDescription: jobData.jobDescription,
-      jobLocation: jobData.jobLocation,
-      jobDepartment: jobData.jobDepartment,
-      jobType: jobData.jobType,
-      applicationDeadline: jobData.applicationDeadline, // TO-DO FORMAT!
-      requiredSkills: jobData.requiredSkills,
-      preferredSkills: jobData.preferredSkills,
-      requiredEducation: jobData.requiredEducation,
-      requiredCertifications: jobData.requiredCertifications,
-      techStack: jobData.techStack,
-      travelRequirements: jobData.travelRequirements,
-      teamSize: jobData.teamSize,
-      candidateResourceLinks: jobData.candidateResourceLinks,
-      // other fields
+      jobTitle: jobData.jobTitle || "N/A",
+      jobDescription: jobData.jobDescription || "No description provided.",
+      jobLocation: jobData.jobLocation || "N/A",
+      jobDepartment: jobData.jobDepartment || "N/A",
+      jobType: jobData.jobType || "N/A",
+      applicationDeadline: jobData.applicationDeadline || null,
+
+      requiredSkills: jobData.requiredSkills || [],
+      preferredSkills: jobData.preferredSkills || [],
+      requiredEducation: jobData.requiredEducation || [],
+      requiredCertifications: jobData.requiredCertifications || [],
+
+      // For techStack, decide what's public. Example:
+      techStack: {
+        stack: (jobData.techStack?.stack || []).map((item) => ({
+          skill: item.skill,
+          level: item.level,
+        })), // Only skill and level from stack
+
+        architecture: jobData.techStack?.architecture || "",
+        practices: jobData.techStack?.practices || [],
+        // Avoid exposing redFlags, weights, detailed challenges or scale unless intended
+      },
+
+      travelRequirements: jobData.travelRequirements || "N/A",
+      salaryRange: jobData.salaryRange || "Not disclosed", // Or be more specific if you have a policy
+      teamSize: jobData.teamSize || "N/A", // If teamSize is still relevant for jobs
+      candidateResourceLinks: jobData.candidateResourceLinks || [],
+      
+      // Consider if parts of successCriteria or candidatePersona are public
     };
 
     return {

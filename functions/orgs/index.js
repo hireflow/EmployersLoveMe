@@ -1,71 +1,93 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
-// admin.initializeApp() // Make sure admin is initialized, typically in your main index.js if not here.
-const db = admin.firestore();
 
-// Ensure admin is initialized if not done elsewhere
-if (admin.apps.length === 0) {
-  admin.initializeApp();
-}
+const db = admin.firestore();
 
 exports.createJob = onCall(async (request) => {
   try {
     const data = request.data;
-    console.log(request.data);
+    console.log("createJob received data:", JSON.stringify(data, null, 2));
 
     if (
       !data.orgId ||
-      !Array.isArray(data.hiringManagerIds) || // This is the input param name, that's fine
-      data.hiringManagerIds.length === 0 ||
       !data.jobTitle ||
-      !data.jobDescription
+      !Array.isArray(data.hiringManagerIds) ||
+      data.hiringManagerIds.length === 0
     ) {
       throw new HttpsError(
         "invalid-argument",
-        "Missing required fields: orgId, hiringManagerIds, jobTitle, or jobDescription"
+        "Missing required fields: orgId, jobTitle, or hiringManagerIds."
       );
     }
 
-    const jobRef = admin.firestore().collection("jobs").doc();
+    const jobRef = db.collection("jobs").doc(); // Firestore will generate ID
     const createdAt = admin.firestore.Timestamp.now();
+
+    // --- Constructing jobData according to new schema ---
     const jobData = {
       jobTitle: data.jobTitle,
-      applicationDeadline: data.applicationDeadline || "",
-      applications: [],
-      hiringManagerIds: data.hiringManagerIds, // Storing IDs of managers for this job
       orgId: data.orgId,
-      requiredEducation: data.requiredEducation || "",
-      requiredCertifications: data.requiredCertifications || "",
-      requiredSkills: data.requiredSkills || "",
-      preferredSkills: data.preferredSkills || "",
-      requiredQuestions: data.requiredQuestions || "",
-      candidateResourceLinks: data.candidateResourceLinks || "",
-      jobType: data.jobType || "",
-      interviewStages: data.interviewStages || 0,
-      jobDepartment: data.jobDepartment || "",
-      jobDescription: data.jobDescription,
-      jobLocation: data.jobLocation || "",
-      teamSize: data.teamSize || 0,
-      techStack: data.techStack || "",
-      travelRequirements: data.travelRequirements || "",
+      hiringManagerIds: data.hiringManagerIds, // Ensure this is an array of UIDs
       createdAt: createdAt,
-      jobSalary: data.jobSalary || "",
-      status: "active",
+      status: data.status || "active", // Default status
+
+      applicationDeadline: data.applicationDeadline || null, // Store as null if not provided
+      applications: [], // Initialize as empty array
+
+      riskTolerance: data.riskTolerance || "medium", // Default or from input
+
+      // Array fields - expect arrays from client
+      requiredEducation: Array.isArray(data.requiredEducation)
+        ? data.requiredEducation
+        : [],
+      requiredCertifications: Array.isArray(data.requiredCertifications)
+        ? data.requiredCertifications
+        : [],
+      requiredSkills: Array.isArray(data.requiredSkills)
+        ? data.requiredSkills
+        : [],
+      preferredSkills: Array.isArray(data.preferredSkills)
+        ? data.preferredSkills
+        : [],
+      requiredQuestions: Array.isArray(data.requiredQuestions)
+        ? data.requiredQuestions
+        : [],
+      candidateResourceLinks: Array.isArray(data.candidateResourceLinks)
+        ? data.candidateResourceLinks
+        : [],
+
+      jobType: data.jobType || "",
+      interviewStages: data.interviewStages || 0, // Or handle as array of stage descriptions if needed
+      jobDepartment: data.jobDepartment || "",
+      jobDescription: data.jobDescription || "", // Rich text expected
+      jobLocation: data.jobLocation || "",
+      travelRequirements: data.travelRequirements || "",
+      salaryRange: data.salaryRange || "", // New field
+
+      techStack: data.techStack || {
+        // Provide defaults for sub-properties if necessary
+        stack: [],
+        architecture: "",
+        scale: "",
+        challenges: [],
+        practices: [],
+      },
+      successCriteria: data.successCriteria || {
+        immediate: [],
+        longTerm: [],
+      },
+      candidatePersona: data.candidatePersona || "",
+      teamSize: data.teamSize || "",
     };
 
     await jobRef.set(jobData);
 
-    const orgRef = admin.firestore().collection("orgs").doc(data.orgId);
-    const orgDoc = await orgRef.get();
-
-    if (!orgDoc.exists) {
-      throw new HttpsError("not-found", "Organization not found");
-    }
-
+    const orgRef = db.collection("orgs").doc(data.orgId);
     await orgRef.update({
-      jobs: admin.firestore.FieldValue.arrayUnion(jobRef.id), // Using 'jobs' as per schema
+      jobs: admin.firestore.FieldValue.arrayUnion(jobRef.id),
     });
 
+    console.log(`Job ${jobRef.id} created successfully for org ${data.orgId}`);
     return {
       success: true,
       jobId: jobRef.id,
@@ -76,7 +98,115 @@ exports.createJob = onCall(async (request) => {
     if (error instanceof HttpsError) {
       throw error;
     }
-    throw new HttpsError("internal", "Error creating job", error.message);
+    throw new HttpsError("internal", error.message || "Error creating job");
+  }
+});
+
+exports.updateJobById = onCall(async (request) => {
+  const { jobId, updatedJobData } = request.data;
+  console.log(
+    `updateJobById called for jobId: ${jobId}`,
+    JSON.stringify(updatedJobData, null, 2)
+  );
+
+  try {
+    if (!jobId || !updatedJobData) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Missing required fields: jobId and updatedJobData."
+      );
+    }
+
+    const jobRef = db.collection("jobs").doc(jobId);
+    const jobDoc = await jobRef.get();
+
+    if (!jobDoc.exists) {
+      throw new HttpsError("not-found", `Job with ID ${jobId} not found.`);
+    }
+
+    const payload = {};
+    const topLevelFields = [
+      "jobTitle",
+      "applicationDeadline",
+      "status",
+      "riskTolerance",
+      "jobType",
+      "interviewStages",
+      "jobDepartment",
+      "jobDescription",
+      "jobLocation",
+      "travelRequirements",
+      "salaryRange",
+      "candidatePersona",
+      "teamSize", // Added teamSize here
+    ];
+    const arrayFields = [
+      "hiringManagerIds",
+      "requiredEducation",
+      "requiredCertifications",
+      "requiredSkills",
+      "preferredSkills",
+      "requiredQuestions",
+      "candidateResourceLinks",
+    ];
+    const objectFields = ["techStack", "successCriteria"];
+
+    topLevelFields.forEach((field) => {
+      if (updatedJobData.hasOwnProperty(field)) {
+        payload[field] = updatedJobData[field];
+      }
+    });
+
+    arrayFields.forEach((field) => {
+      if (
+        updatedJobData.hasOwnProperty(field) &&
+        Array.isArray(updatedJobData[field])
+      ) {
+        payload[field] = updatedJobData[field];
+      } else if (updatedJobData.hasOwnProperty(field)) {
+        console.warn(
+          `Field ${field} was expected to be an array but was not. Skipping update for this field.`
+        );
+      }
+    });
+
+    objectFields.forEach((field) => {
+      if (
+        updatedJobData.hasOwnProperty(field) &&
+        typeof updatedJobData[field] === "object" &&
+        updatedJobData[field] !== null
+      ) {
+        // Potentially add deeper validation/merging for nested objects if needed
+        // For now, direct assignment if present and is an object.
+        payload[field] = updatedJobData[field];
+      } else if (updatedJobData.hasOwnProperty(field)) {
+        console.warn(
+          `Field ${field} was expected to be an object but was not. Skipping update for this field.`
+        );
+      }
+    });
+
+    if (Object.keys(payload).length === 0) {
+      console.log("No valid fields to update for job:", jobId);
+      return { success: true, message: "No fields to update." }; // Or throw an error if an update was expected
+    }
+
+    console.log(
+      `Updating job ${jobId} with payload:`,
+      JSON.stringify(payload, null, 2)
+    );
+    await jobRef.update(payload);
+
+    return {
+      success: true,
+      message: "Job updated successfully",
+    };
+  } catch (error) {
+    console.error(`Error updating job ${jobId}:`, error);
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    throw new HttpsError("internal", error.message || "Error updating job.");
   }
 });
 
@@ -93,11 +223,10 @@ exports.getJobsByOrgId = onCall(async (request) => {
     const jobsCollection = admin.firestore().collection("jobs");
 
     const orgDoc = await orgsCollection.doc(orgId).get();
-    let jobIdsFromOrg = []; // Renamed to avoid confusion with param name
+    let jobIdsFromOrg = [];
     if (orgDoc.exists) {
       const data = orgDoc.data();
       if (data && data.jobs && Array.isArray(data.jobs)) {
-        // Using 'jobs' as per schema
         jobIdsFromOrg = data.jobs;
       }
     }
@@ -106,7 +235,7 @@ exports.getJobsByOrgId = onCall(async (request) => {
       console.log("No jobs found for orgID: ", orgId);
       return {
         success: true,
-        data: [],
+        data: [], // Ensure data is an array
       };
     }
 
@@ -126,8 +255,7 @@ exports.getJobsByOrgId = onCall(async (request) => {
 
     return {
       success: true,
-      // jobIds: jobIdsFromOrg, // if client expects the raw IDs list
-      data: populatedJobs,
+      data: populatedJobs, // Ensure data is an array
     };
   } catch (error) {
     console.error("Error fetching populated jobs by orgId:", error);
@@ -137,35 +265,6 @@ exports.getJobsByOrgId = onCall(async (request) => {
     throw new HttpsError(
       "internal",
       "An internal error occurred while fetching jobs.",
-      error.message
-    );
-  }
-});
-
-exports.updateJobById = onCall(async (request) => {
-  const { jobId, updatedJobData } = request.data;
-  try {
-    if (!jobId || !updatedJobData)
-      throw new HttpsError(
-        "invalid-argument",
-        "Missing required fields jobId and updatedJobData"
-      );
-
-    const jobRef = admin.firestore().collection("jobs").doc(jobId);
-    await jobRef.update(updatedJobData);
-
-    return {
-      success: true,
-      message: "Job updated successfully",
-    };
-  } catch (error) {
-    console.error("Error updating job:", error);
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-    throw new HttpsError(
-      "internal",
-      "An internal error occurred while updating jobs.",
       error.message
     );
   }
@@ -186,7 +285,7 @@ exports.deleteJobById = onCall(async (request) => {
     const batch = admin.firestore().batch();
 
     batch.update(orgRef, {
-      jobs: admin.firestore.FieldValue.arrayRemove(jobId), // Using 'jobs' as per schema
+      jobs: admin.firestore.FieldValue.arrayRemove(jobId),
     });
 
     batch.delete(jobRef);
@@ -206,108 +305,6 @@ exports.deleteJobById = onCall(async (request) => {
       "internal",
       "An internal error occurred while deleting jobs.",
       error.message
-    );
-  }
-});
-
-exports.createOrg = onCall(async (request) => {
-  const data = request.data;
-
-  try {
-    if (!data.companyName || !data.userId) {
-      throw new HttpsError(
-        "invalid-argument",
-        "Missing required fields for organization creation (companyName, userId)"
-      );
-    }
-
-    const existingOrg = await admin
-      .firestore()
-      .collection("orgs")
-      .where("companyName", "==", data.companyName)
-      .get();
-
-    if (!existingOrg.empty) {
-      throw new HttpsError(
-        "already-exists",
-        "An organization with this name already exists"
-      );
-    }
-
-    const orgRef = admin.firestore().collection("orgs").doc();
-    const createdAt = admin.firestore.Timestamp.now();
-
-    // Align with schema
-    const orgData = {
-      companyName: data.companyName,
-      companyDescription: data.companyDescription || "",
-      companySize: data.companySize || "",
-      createdAt: createdAt,
-      industry: data.industry || "",
-      location: data.location || "",
-      logoUrl: data.logoUrl || "",
-      missionStatement: data.missionStatement || "",
-      companyValues: data.companyValues || [], // From schema
-      workEnvironment: data.workEnvironment || {
-        // From schema, with defaults
-        techMaturity: "medium",
-        structure: "hybrid",
-        communication: "sync-first",
-        pace: "project-based",
-        growthExpectiations: "mentored",
-        collaboration: "departmental",
-        teamSize: "",
-      },
-      hiringManagers: [data.userId], // Schema: hiringManagers: array [userId]
-      jobs: [], // Schema: jobs: array [jobId], initially empty
-
-      paymentPlanCanceledDate: data.paymentPlanCanceledDate || null, // Use null for unset dates
-      paymentPlanCanceledReason: data.paymentPlanCanceledReason || "",
-      paymentPlanEndDate: data.paymentPlanEndDate || null,
-      paymentPlanStartDate: data.paymentPlanStartDate || null,
-      paymentPlanStatus: data.paymentPlanStatus || "",
-      paymentPlanTier: data.paymentPlanTier || "",
-      stripeCustomerId: data.stripeCustomerId || "",
-      stripeSubscriptionId: data.stripeSubscriptionId || "",
-    };
-    // Validate companyValues structure if necessary
-    if (Array.isArray(orgData.companyValues)) {
-      orgData.companyValues.forEach((cv) => {
-        if (
-          typeof cv.name !== "string" ||
-          typeof cv.description !== "string" ||
-          typeof cv.weight !== "number"
-        ) {
-          console.warn("Invalid companyValue structure:", cv);
-          // Potentially throw error or clean up
-        }
-      });
-    }
-
-    const batch = admin.firestore().batch();
-    batch.set(orgRef, orgData);
-
-    const userRef = admin.firestore().collection("users").doc(data.userId);
-    batch.update(userRef, {
-      role: "hiring-manager", // Or whatever role logic you have
-      organizations: admin.firestore.FieldValue.arrayUnion(orgRef.id),
-    });
-
-    await batch.commit();
-
-    return {
-      success: true,
-      orgId: orgRef.id,
-      message: "Organization created successfully",
-    };
-  } catch (error) {
-    console.error("Error creating organization:", error);
-    if (error instanceof HttpsError) {
-      throw error;
-    }
-    throw new HttpsError(
-      "internal",
-      error.message || "Error creating organization"
     );
   }
 });
@@ -332,7 +329,6 @@ exports.updateOrg = onCall(async (request) => {
         `Organization with ID ${orgId} not found.`
       );
     }
-
 
     const updateData = {};
     const allowedFields = [
@@ -627,6 +623,108 @@ exports.getPublicOrgDetails = onCall(async (request) => {
       "internal",
       `An unexpected error occurred while fetching organization details for orgId: ${orgId}.`,
       error.message
+    );
+  }
+});
+
+exports.createOrg = onCall(async (request) => {
+  const data = request.data;
+
+  try {
+    if (!data.companyName || !data.userId) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Missing required fields for organization creation (companyName, userId)"
+      );
+    }
+
+    const existingOrg = await admin
+      .firestore()
+      .collection("orgs")
+      .where("companyName", "==", data.companyName)
+      .get();
+
+    if (!existingOrg.empty) {
+      throw new HttpsError(
+        "already-exists",
+        "An organization with this name already exists"
+      );
+    }
+
+    const orgRef = admin.firestore().collection("orgs").doc();
+    const createdAt = admin.firestore.Timestamp.now();
+
+    // Align with schema
+    const orgData = {
+      companyName: data.companyName,
+      companyDescription: data.companyDescription || "",
+      companySize: data.companySize || "",
+      createdAt: createdAt,
+      industry: data.industry || "",
+      location: data.location || "",
+      logoUrl: data.logoUrl || "",
+      missionStatement: data.missionStatement || "",
+      companyValues: data.companyValues || [], // From schema
+      workEnvironment: data.workEnvironment || {
+        // From schema, with defaults
+        techMaturity: "medium",
+        structure: "hybrid",
+        communication: "sync-first",
+        pace: "project-based",
+        growthExpectiations: "mentored",
+        collaboration: "departmental",
+        teamSize: "",
+      },
+      hiringManagers: [data.userId], // Schema: hiringManagers: array [userId]
+      jobs: [], // Schema: jobs: array [jobId], initially empty
+
+      paymentPlanCanceledDate: data.paymentPlanCanceledDate || null, // Use null for unset dates
+      paymentPlanCanceledReason: data.paymentPlanCanceledReason || "",
+      paymentPlanEndDate: data.paymentPlanEndDate || null,
+      paymentPlanStartDate: data.paymentPlanStartDate || null,
+      paymentPlanStatus: data.paymentPlanStatus || "",
+      paymentPlanTier: data.paymentPlanTier || "",
+      stripeCustomerId: data.stripeCustomerId || "",
+      stripeSubscriptionId: data.stripeSubscriptionId || "",
+    };
+    // Validate companyValues structure if necessary
+    if (Array.isArray(orgData.companyValues)) {
+      orgData.companyValues.forEach((cv) => {
+        if (
+          typeof cv.name !== "string" ||
+          typeof cv.description !== "string" ||
+          typeof cv.weight !== "number"
+        ) {
+          console.warn("Invalid companyValue structure:", cv);
+          // Potentially throw error or clean up
+        }
+      });
+    }
+
+    const batch = admin.firestore().batch();
+    batch.set(orgRef, orgData);
+
+    const userRef = admin.firestore().collection("users").doc(data.userId);
+    batch.update(userRef, {
+      role: "hiring-manager", // Or whatever role logic you have
+      organizations: admin.firestore.FieldValue.arrayUnion(orgRef.id),
+    });
+
+    await batch.commit();
+
+    return {
+      success: true,
+      orgId: orgRef.id,
+      message: "Organization created successfully",
+    };
+  } catch (error) {
+    console.error("Error creating organization:", error);
+    if (error instanceof HttpsError) {
+      throw error;
+    }
+    throw new HttpsError(
+      "internal",
+      error.message || "Error creating organization"
     );
   }
 });

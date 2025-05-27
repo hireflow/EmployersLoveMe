@@ -1,8 +1,7 @@
 <script setup>
-
 import { useAuthStore } from "@/stores/auth";
 import { getFunctions, httpsCallable } from "firebase/functions";
-import { ref, computed, watch, nextTick } from "vue";
+import { ref, computed, nextTick } from "vue";
 import { RouterLink } from "vue-router";
 import SideBarLayout from "../layouts/SideBarLayout.vue";
 
@@ -306,18 +305,6 @@ const deleteOrg = async () => {
     authStore.tempOrgForDeletion = null;
   }
 };
-
-watch(
-  () => authStore.orgs,
-  (newOrgsList) => {
-    if (newOrgsList.length === 0 && !authStore.loading) {
-      isNewUser.value = true;
-    } else {
-      isNewUser.value = false;
-    }
-  },
-  { immediate: true }
-);
 </script>
 
 <template>
