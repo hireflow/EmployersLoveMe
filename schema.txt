@@ -32,15 +32,6 @@ jobs
         *"jobDepartment":
         *"jobDescription": \\query for influence, level, and day-to-day
         *"jobLocation":
-        *workEnvironment:
-            *techMaturity: "high"
-            *structure: "autonomous",
-            *communication: "async-first",
-            *pace: "sprint-based",
-            *growthExpectiations: "self-directed",
-            *collaboration: "cross-functional"
-            "teamSize":
-        
         *"techStack": {
             stack: [ \\ ask for tools, technologies, other platforms
                 {
@@ -111,6 +102,15 @@ org
                 weight: 
             }
         ]
+        *workEnvironment:
+            *techMaturity: "high"
+            *structure: "autonomous",
+            *communication: "async-first",
+            *pace: "sprint-based",
+            *growthExpectiations: "self-directed",
+            *collaboration: "cross-functional"
+            "teamSize":
+        
         jobs: array [jobId1]
         paymentPlanCanceledDate:
         paymentPlanCanceledReason:
