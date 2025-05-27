@@ -155,6 +155,68 @@ exports.getJobsByOrgId = onCall(async (request) => {
   }
 });
 
+exports.updateOrg = onCall(async (request) => {
+  // 1. Authentication Check
+  if (!request.auth) {
+    throw new HttpsError("unauthenticated", "The function must be called while authenticated.");
+  }
+
+  // 2. Input Validation
+  const { orgId, updates } = request.data;
+
+  if (!orgId || typeof orgId !== 'string') {
+    throw new HttpsError("invalid-argument", "The function must be called with a valid 'orgId'.");
+  }
+
+  if (!updates || typeof updates !== 'object' || Object.keys(updates).length === 0) {
+    throw new HttpsError("invalid-argument", "The function must be called with a non-empty 'updates' object.");
+  }
+
+  // Optional: Prevent certain fields from being updated directly.
+  // For example, 'hiringManagerIds' and 'jobIds' should likely be managed by dedicated functions.
+  delete updates.hiringManagerIds;
+  delete updates.jobIds;
+  delete updates.createdAt; // createdAt should not be changed after creation
+  delete updates.paymentPlanCanceledDate;
+  delete updates.paymentPlanCanceledReason;
+  delete updates.paymentPlanEndDate;
+  delete updates.paymentPlanStartDate;
+  delete updates.paymentPlanStatus;
+  delete updates.paymentPlanTier;
+  delete updates.stripeCustomerId;
+  delete updates.stripeSubscriptionId;
+
+
+  const orgRef = db.collection("orgs").doc(orgId);
+
+  try {
+    const orgDoc = await orgRef.get();
+
+    // 3. Authorization - Verify the org exists
+    if (!orgDoc.exists) {
+      throw new HttpsError("not-found", `Organization with ID ${orgId} not found.`);
+    }
+
+    // 4. Authorization - Check if the authenticated user is a hiring manager
+    const orgData = orgDoc.data();
+    if (!orgData.hiringManagerIds || !orgData.hiringManagerIds.includes(request.auth.uid)) {
+      throw new HttpsError("permission-denied", "You do not have permission to update this organization.");
+    }
+
+    // 5. Update Firestore Document
+    await orgRef.update(updates);
+    return { success: true, message: "Organization updated successfully." };
+
+  } catch (error) {
+    console.error("Error updating organization:", error);
+    if (error instanceof HttpsError) { // Re-throw HttpsError directly
+      throw error;
+    }
+    // For other errors, throw a generic internal error
+    throw new HttpsError("internal", "An error occurred while updating the organization.", error.message);
+  }
+});
+
 exports.updateJobById = onCall(async (request) => {
   const { jobId, updatedJobData } = request.data;
   try {
@@ -295,6 +357,10 @@ exports.createOrg = onCall(async (request) => {
       paymentPlanTier: data.paymentPlanTier || "",
       stripeCustomerId: data.stripeCustomerId || "",
       stripeSubscriptionId: data.stripeSubscriptionId || "",
+
+      // Add the new fields here
+      companyValues: data.companyValues || [],
+      workEnvironment: data.workEnvironment || {},
     };
 
     // Use a batch write to ensure both documents are created atomically
