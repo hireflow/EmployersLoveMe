@@ -333,15 +333,18 @@
               placeholder="Real-world application examples"
               rows="2"
             ></textarea>
-            <label class="sub-label">Weight (0.0-1.0)</label>
-            <input
-              type="number"
-              v-model.number="item.weight"
-              placeholder="Weight (0.0-1.0)"
-              step="0.01"
-              min="0"
-              max="1"
-            />
+            <label class="sub-label">Weight (1-10)</label>
+            <div class="slider-container">
+              <input
+                type="range"
+                v-model.number="item.weight"
+                min="1"
+                max="10"
+                step="1"
+                class="weight-slider"
+              />
+              <span class="slider-value">{{ item.weight }}</span>
+            </div>
             <div class="sub-array-input-group">
               <label class="sub-label">Red Flags for this technology:</label>
               <div
@@ -462,14 +465,25 @@
               placeholder="Description of success"
               rows="2"
             ></textarea>
-            <input
+            <!-- <input
               type="number"
               v-model.number="item.weight"
               placeholder="Weight (0.0-1.0)"
               step="0.01"
               min="0"
               max="1"
-            />
+            /> -->
+            <div class="slider-container">
+              <input
+                type="range"
+                v-model.number="item.weight"
+                min="1"
+                max="10"
+                step="1"
+                class="weight-slider"
+              />
+              <span class="slider-value">{{ item.weight }}</span>
+            </div>
             <button
               type="button"
               @click="removeSuccessCriterion('immediate', index)"
@@ -503,14 +517,25 @@
               placeholder="Description of success"
               rows="2"
             ></textarea>
-            <input
+            <!-- <input
               type="number"
               v-model.number="item.weight"
               placeholder="Weight (0.0-1.0)"
               step="0.01"
               min="0"
               max="1"
-            />
+            /> -->
+            <div class="slider-container">
+              <input
+                type="range"
+                v-model.number="item.weight"
+                min="1"
+                max="10"
+                step="1"
+                class="weight-slider"
+              />
+              <span class="slider-value">{{ item.weight }}</span>
+            </div>
             <button
               type="button"
               @click="removeSuccessCriterion('longTerm', index)"
@@ -595,13 +620,13 @@ const initialTechStackItem = () => ({
   level: "intermediate",
   realWorldApplication: "",
   redFlags: [],
-  weight: 0.1,
+  weight: 1,
 });
 
 const initialSuccessCriterion = () => ({
   metric: "",
   description: "",
-  weight: 0.2,
+  weight: 1,
 });
 
 const formData = reactive({
@@ -887,5 +912,59 @@ textarea {
 }
 .btn-cancel:hover {
   background-color: #6c7a7b;
+}
+
+.slider-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.5rem 0;
+}
+
+.weight-slider {
+  flex-grow: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #e2e8f0;
+  border-radius: 3px;
+  outline: none;
+}
+
+.weight-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #4a90e2;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.weight-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: #4a90e2;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: none;
+}
+
+.weight-slider::-webkit-slider-thumb:hover {
+  background: #357abd;
+}
+
+.weight-slider::-moz-range-thumb:hover {
+  background: #357abd;
+}
+
+.slider-value {
+  min-width: 2rem;
+  text-align: center;
+  font-weight: 600;
+  color: #4a5568;
+  font-size: 0.9rem;
 }
 </style>

@@ -15,10 +15,12 @@ const candidateAuthStore = useCandidateAuthStore();
 const functions = getFunctions(app);
 
 const sendChat = httpsCallable(functions, "geminiChatbot");
+const applyToJobCallable = httpsCallable(functions, "applyToJob");
 const currentMessageForGemini = ref("");
 const historyForGemini = ref([]);
 
 const isSendingMessage = ref(false);
+const isSubmittingApplication = ref(false);
 const chatError = ref("");
 const showChatbot = ref(false);
 const employmentForm = ref({
@@ -77,6 +79,39 @@ async function handleFormSubmitAndInitializeChatbot() {
   } catch (error) {
     chatError.value = "Failed to submit form. Please try again.";
     console.error("Form submission error:", error);
+  }
+}
+
+async function submitApplication() {
+  if (!applicationId.value || !jobDetails.value || !orgDetails.value) {
+    chatError.value = "Missing required information to submit application";
+    return;
+  }
+
+  isSubmittingApplication.value = true;
+  chatError.value = "";
+
+  try {
+    const result = await applyToJobCallable({
+      candidateId: candidateAuthStore.candidate.uid,
+      jobId: jobDetails.value.id,
+      applicationId: applicationId.value,
+      messages: historyForGemini.value,
+      summaryToAddToReport: "Application submitted via chatbot interview",
+      scoreToAddToReport: null
+    });
+
+    if (result.data.success) {
+      successMessage.value = "Application submitted successfully!";
+      // Optionally redirect to dashboard or show success state
+    } else {
+      chatError.value = result.data.message || "Failed to submit application";
+    }
+  } catch (error) {
+    console.error("Error submitting application:", error);
+    chatError.value = "Failed to submit application. Please try again.";
+  } finally {
+    isSubmittingApplication.value = false;
   }
 }
 
@@ -518,6 +553,17 @@ onMounted(async () => {
             <span v-else>Send</span>
           </button>
         </div>
+
+        <div class="submit-application-container">
+          <button
+            @click="submitApplication"
+            :disabled="isSubmittingApplication"
+            class="submit-application-button"
+          >
+            <span v-if="isSubmittingApplication">Submitting...</span>
+            <span v-else>Submit Application</span>
+          </button>
+        </div>
       </div>
     </div>
     <div v-else-if="!isLoading && !errorMessage" class="no-application-data">
@@ -857,6 +903,35 @@ onMounted(async () => {
 
 .send-button:disabled {
   background: #b0bec5;
+  cursor: not-allowed;
+}
+
+.submit-application-container {
+  padding: 1rem;
+  border-top: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  text-align: center;
+}
+
+.submit-application-button {
+  padding: 0.75rem 2rem;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  min-width: 200px;
+}
+
+.submit-application-button:hover:not(:disabled) {
+  background: #388e3c;
+}
+
+.submit-application-button:disabled {
+  background: #a5d6a7;
   cursor: not-allowed;
 }
 </style>

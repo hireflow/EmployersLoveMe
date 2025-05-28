@@ -297,7 +297,7 @@ exports.applyToJob = onCall(async (request) => {
       const appData = {
         candidateId,
         jobId,
-        orgId,
+        orgId: applicationData.orgId, //check if i need to prefill this???
         messages,
         reportId,
         status: "Completed",
