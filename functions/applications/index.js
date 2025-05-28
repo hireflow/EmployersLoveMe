@@ -1,5 +1,6 @@
-const { onCall, HttpsError } = require("firebase-functions/v2/https");
+const { onCall, onRequest, HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin"); // Already initialized in main index.js
+
 
 // Firestore instance
 const db = admin.firestore();
@@ -322,6 +323,49 @@ exports.applyToJob = onCall(async (request) => {
     throw new HttpsError(
       "internal",
       "An unexpected error occurred while applying to the job."
+    );
+  }
+});
+
+exports.parseApplicationForm = onCall(async (request) => {
+    const {
+    employmentStatus,
+    yearsOfExperience,
+    currentSalary,
+    noticePeriod,
+    applicationId,
+    reportId,
+    resumeText,
+    userId,
+  } = request.data;
+
+  // 2. Validate Resume Text
+  if (!resumeText || typeof resumeText !== 'string' || resumeText.trim() === '') {
+    console.error(`[${Date.now()}] Invalid or missing resumeText in payload.`);
+    throw new HttpsError(
+      'invalid-argument',
+      'The `resumeText` field is required and must be a non-empty string.'
+    );
+  }
+
+  const candidateData = {
+    resumeBreakdown: resumeText,
+    uploadedAt: admin.firestore.FieldValue.serverTimestamp(),
+  };
+
+  try {
+    const candidateRef = db.collection("candidates").doc(userId);
+    await candidateRef.set(candidateData, { merge: true });
+
+    return {
+      success: true,
+    };
+  } catch (err) {
+    console.error(`[${Date.now()}] Firestore save failed for user ${userId}:`, err);
+    throw new HttpsError(
+      'internal',
+      'Failed to save application data.',
+      err.message 
     );
   }
 });
