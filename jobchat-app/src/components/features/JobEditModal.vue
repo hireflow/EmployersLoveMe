@@ -136,6 +136,70 @@
         </fieldset>
 
         <fieldset>
+          <legend>Work Environment</legend>
+          <div class="form-grid two-col">
+            <div class="form-group">
+              <label for="edit_techMaturity">Technology Adoption</label>
+              <select id="edit_techMaturity" v-model="formData.workEnvironment.techMaturity">
+                <option value="emerging">Emerging (Exploring new tech)</option>
+                <option value="established">Established (Proven, stable tech)</option>
+                <option value="leading-edge">Leading-Edge (Cutting-edge, experimental)</option>
+                <option value="mixed">Mixed (Varies by team/project)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="edit_structure">Team Structure</label>
+              <select id="edit_structure" v-model="formData.workEnvironment.structure">
+                <option value="hierarchical">Hierarchical (Clear reporting lines)</option>
+                <option value="flat">Flat (Minimal management layers)</option>
+                <option value="matrix">Matrix (Reporting to multiple managers)</option>
+                <option value="autonomous-teams">Autonomous Teams (Self-managed units)</option>
+                <option value="hybrid">Hybrid (Combination of structures)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid two-col">
+            <div class="form-group">
+              <label for="edit_communication">Primary Communication Style</label>
+              <select id="edit_communication" v-model="formData.workEnvironment.communication">
+                <option value="async-first">Async-First (Documentation, written)</option>
+                <option value="sync-first">Sync-First (Meetings, real-time chat)</option>
+                <option value="balanced">Balanced (Mix of async and sync)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="edit_pace">Work Pace</label>
+              <select id="edit_pace" v-model="formData.workEnvironment.pace">
+                <option value="steady-deliberate">Steady & Deliberate</option>
+                <option value="fast-paced-agile">Fast-Paced & Agile</option>
+                <option value="sprint-based">Sprint-Based (Fixed cycles)</option>
+                <option value="project-driven">Project-Driven (Variable pace)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid two-col">
+            <div class="form-group">
+              <label for="edit_growthExpectiations">Career Growth Approach</label>
+              <select id="edit_growthExpectiations" v-model="formData.workEnvironment.growthExpectiations">
+                <option value="structured-paths">Structured Paths (Defined career ladders)</option>
+                <option value="self-directed-learning">Self-Directed Learning (Autonomy in growth)</option>
+                <option value="mentorship-coaching">Mentorship & Coaching Focus</option>
+                <option value="skill-based-advancement">Skill-Based Advancement</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="edit_collaboration">Collaboration Model</label>
+              <select id="edit_collaboration" v-model="formData.workEnvironment.collaboration">
+                <option value="individual-contribution">Primarily Individual Contribution</option>
+                <option value="team-centric">Team-Centric Projects</option>
+                <option value="cross-functional-squads">Cross-Functional Squads</option>
+                <option value="departmental-silos">Departmental Silos with Handoffs</option>
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
           <legend>Skills & Qualifications</legend>
           <div class="array-input-group">
             <label>Required Skills *</label>
@@ -627,6 +691,14 @@ const defaultJobStructure = () => ({
     immediate: [],
     longTerm: [],
   },
+  workEnvironment: {
+    techMaturity: "emerging",
+    structure: "hierarchical",
+    communication: "async-first",
+    pace: "steady-deliberate",
+    growthExpectiations: "structured-paths",
+    collaboration: "individual-contribution",
+  },
   // any other fields that might be in props.job but not explicitly defined here
   // will be spread in by { ...props.job }
 });
@@ -675,6 +747,10 @@ function initializeFormData() {
             ...s,
           }))
         : [],
+    },
+    workEnvironment: {
+      ...defaults.workEnvironment,
+      ...(jobData.workEnvironment || {}),
     },
     // Ensure all top-level array fields are indeed arrays
     requiredSkills: Array.isArray(jobData.requiredSkills)

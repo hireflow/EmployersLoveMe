@@ -76,6 +76,14 @@ jobs
             { metric: "Innovation", description: "Introduce new technologies/practices", weight: 0.25 }
             }
         },
+        *workEnvironment:
+            *techMaturity: "high"
+            *structure: "autonomous",
+            *communication: "async-first",           
+            *pace: "sprint-based",
+            *growthExpectiations: "self-directed",
+            *collaboration: "cross-functional"
+            "teamSize":
         "candidatePersona": \\describe your ideal candidate. how do they work with other/communicatte and balh
         "travelRequirements"
         "salaryRange"
@@ -102,14 +110,7 @@ org
                 weight: 
             }
         ]
-        *workEnvironment:
-            *techMaturity: "high"
-            *structure: "autonomous",
-            *communication: "async-first",
-            *pace: "sprint-based",
-            *growthExpectiations: "self-directed",
-            *collaboration: "cross-functional"
-            "teamSize":
+
         
         jobs: array [jobId1]
         paymentPlanCanceledDate:

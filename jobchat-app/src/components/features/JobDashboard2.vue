@@ -180,6 +180,16 @@ const createNewJob = async (formData) => {
       salaryRange: formData.salaryRange || "",
       teamSize: formData.teamSize || "", // If still used
 
+      // Work Environment fields
+      workEnvironment: formData.workEnvironment || {
+        techMaturity: "emerging",
+        structure: "hierarchical",
+        communication: "async-first",
+        pace: "steady-deliberate",
+        growthExpectiations: "structured-paths",
+        collaboration: "individual-contribution",
+      },
+
       // Complex objects - JobForm needs to manage state for these
       techStack: formData.techStack || {
         stack: [],
