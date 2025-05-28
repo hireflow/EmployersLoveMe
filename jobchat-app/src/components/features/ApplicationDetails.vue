@@ -31,6 +31,30 @@ const employmentForm = ref({
 });
 const selectedResumeText = ref(null);
 
+// Refs for application and report IDs
+const applicationId = ref(null);
+const reportId = ref(null);
+const jobDetails = ref(null); // To store job details
+const orgDetails = ref(null); // To store org details
+
+// State refs
+const isLoading = ref(true); // Overall loading for the page
+const isLoadingDetails = ref(false); // Specific loading for job/org details
+const errorMessage = ref("");
+const successMessage = ref("");
+const isExistingApplication = ref(false);
+
+// Callable function references
+const createApplicationCallable = httpsCallable(functions, "createApplication");
+const getPublicJobDetailsCallable = httpsCallable(
+  functions,
+  "getPublicJobDetails"
+);
+const getPublicOrgDetailsCallable = httpsCallable(
+  functions,
+  "getPublicOrgDetails"
+);
+
 
 async function sendMessageToGemini() {
   if (!currentMessageForGemini.value.trim()) return;
@@ -44,6 +68,10 @@ async function sendMessageToGemini() {
     }
 
     const result = await sendChat({
+      candidateId: candidateAuthStore.candidate.uid,
+      orgId: route.params.orgId,
+      jobId: route.params.jobId,
+      applicationId: applicationId.value,
       history: historyForGemini.value,
       message: geminiMessage,
     });
@@ -106,29 +134,7 @@ const handleFormSubmitAndInitializeChatbot = async () => {
 };
 
 
-// Refs for application and report IDs
-const applicationId = ref(null);
-const reportId = ref(null);
-const jobDetails = ref(null); // To store job details
-const orgDetails = ref(null); // To store org details
 
-// State refs
-const isLoading = ref(true); // Overall loading for the page
-const isLoadingDetails = ref(false); // Specific loading for job/org details
-const errorMessage = ref("");
-const successMessage = ref("");
-const isExistingApplication = ref(false);
-
-// Callable function references
-const createApplicationCallable = httpsCallable(functions, "createApplication");
-const getPublicJobDetailsCallable = httpsCallable(
-  functions,
-  "getPublicJobDetails"
-);
-const getPublicOrgDetailsCallable = httpsCallable(
-  functions,
-  "getPublicOrgDetails"
-);
 
 // Function to format Firestore Timestamps or date strings
 const formatTimestamp = (timestampInput) => {
