@@ -30,6 +30,37 @@ const employmentForm = ref({
   noticePeriod: "",
 });
 
+// async function sendMessageToGemini() {
+//   if (!currentMessageForGemini.value.trim()) return;
+
+//   isSendingMessage.value = true;
+//   chatError.value = "";
+
+//   try {
+//     const result = await sendChat({
+//       history: historyForGemini.value,
+//       message: currentMessageForGemini.value,
+//     });
+
+//     historyForGemini.value.push({
+//       parts: [{ text: currentMessageForGemini.value}],
+//       role: 'user',
+//     });
+
+//     historyForGemini.value.push({
+//       parts: [{ text: result.data.response }],
+//       role: 'model',
+//     });
+
+//     currentMessageForGemini.value = "";
+//   } catch (error) {
+//     chatError.value = "Failed to send message. Please try again.";
+//     console.error("Chat error:", error);
+//   } finally {
+//     isSendingMessage.value = false;
+//   }
+// }
+
 async function sendMessageToGemini() {
   if (!currentMessageForGemini.value.trim()) return;
 
@@ -42,6 +73,10 @@ async function sendMessageToGemini() {
     }
 
     const result = await sendChat({
+      candidateId: candidateAuthStore.candidate.uid,
+      orgId: route.params.orgId,
+      jobId: route.params.jobId,
+      applicationId: applicationId.value,
       history: historyForGemini.value,
       message: geminiMessage,
     });
