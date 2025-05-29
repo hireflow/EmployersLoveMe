@@ -548,7 +548,6 @@ exports.fetchUserOrgsById = onCall(async (request) => {
           logoUrl: data.logoUrl || "",
           missionStatement: data.missionStatement || "",
           companyValues: data.companyValues || [],
-          workEnvironment: data.workEnvironment || {}, // Client should handle defaults if needed
           hiringManagers: data.hiringManagers || [],
           jobs: data.jobs || [],
         };
@@ -601,13 +600,6 @@ exports.getPublicOrgDetails = onCall(async (request) => {
       missionStatement:
         orgData.missionStatement || "No mission statement provided.",
       companyValues: orgData.companyValues || [], // Expose company values if desired
-      workEnvironment: {
-        // Expose non-sensitive parts of work environment
-        techMaturity: orgData.workEnvironment?.techMaturity || "N/A",
-        structure: orgData.workEnvironment?.structure || "N/A",
-        pace: orgData.workEnvironment?.pace || "N/A",
-        // Add other public-safe workEnvironment fields
-      },
       // Do NOT include hiringManagers, payment info, stripe IDs, etc.
     };
 
