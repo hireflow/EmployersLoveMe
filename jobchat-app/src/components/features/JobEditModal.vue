@@ -136,6 +136,70 @@
         </fieldset>
 
         <fieldset>
+          <legend>Work Environment</legend>
+          <div class="form-grid two-col">
+            <div class="form-group">
+              <label for="edit_techMaturity">Technology Adoption</label>
+              <select id="edit_techMaturity" v-model="formData.workEnvironment.techMaturity">
+                <option value="emerging">Emerging (Exploring new tech)</option>
+                <option value="established">Established (Proven, stable tech)</option>
+                <option value="leading-edge">Leading-Edge (Cutting-edge, experimental)</option>
+                <option value="mixed">Mixed (Varies by team/project)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="edit_structure">Team Structure</label>
+              <select id="edit_structure" v-model="formData.workEnvironment.structure">
+                <option value="hierarchical">Hierarchical (Clear reporting lines)</option>
+                <option value="flat">Flat (Minimal management layers)</option>
+                <option value="matrix">Matrix (Reporting to multiple managers)</option>
+                <option value="autonomous-teams">Autonomous Teams (Self-managed units)</option>
+                <option value="hybrid">Hybrid (Combination of structures)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid two-col">
+            <div class="form-group">
+              <label for="edit_communication">Primary Communication Style</label>
+              <select id="edit_communication" v-model="formData.workEnvironment.communication">
+                <option value="async-first">Async-First (Documentation, written)</option>
+                <option value="sync-first">Sync-First (Meetings, real-time chat)</option>
+                <option value="balanced">Balanced (Mix of async and sync)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="edit_pace">Work Pace</label>
+              <select id="edit_pace" v-model="formData.workEnvironment.pace">
+                <option value="steady-deliberate">Steady & Deliberate</option>
+                <option value="fast-paced-agile">Fast-Paced & Agile</option>
+                <option value="sprint-based">Sprint-Based (Fixed cycles)</option>
+                <option value="project-driven">Project-Driven (Variable pace)</option>
+              </select>
+            </div>
+          </div>
+          <div class="form-grid two-col">
+            <div class="form-group">
+              <label for="edit_growthExpectiations">Career Growth Approach</label>
+              <select id="edit_growthExpectiations" v-model="formData.workEnvironment.growthExpectiations">
+                <option value="structured-paths">Structured Paths (Defined career ladders)</option>
+                <option value="self-directed-learning">Self-Directed Learning (Autonomy in growth)</option>
+                <option value="mentorship-coaching">Mentorship & Coaching Focus</option>
+                <option value="skill-based-advancement">Skill-Based Advancement</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="edit_collaboration">Collaboration Model</label>
+              <select id="edit_collaboration" v-model="formData.workEnvironment.collaboration">
+                <option value="individual-contribution">Primarily Individual Contribution</option>
+                <option value="team-centric">Team-Centric Projects</option>
+                <option value="cross-functional-squads">Cross-Functional Squads</option>
+                <option value="departmental-silos">Departmental Silos with Handoffs</option>
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        <fieldset>
           <legend>Skills & Qualifications</legend>
           <div class="array-input-group">
             <label>Required Skills *</label>
@@ -308,6 +372,18 @@
                 placeholder="Real-world application"
                 rows="2"
               ></textarea>
+              <label class="sub-label">Weight (1-10)</label>
+              <div class="slider-container">
+                <input
+                  type="range"
+                  v-model.number="item.weight"
+                  min="1"
+                  max="10"
+                  step="1"
+                  class="weight-slider"
+                />
+                <span class="slider-value">{{ item.weight }}</span>
+              </div>
               <div class="sub-array-input-group">
                 <label class="sub-label">Red Flags:</label>
                 <div
@@ -332,12 +408,6 @@
                   Add Red Flag
                 </button>
               </div>
-              <input
-                type="number"
-                v-model.number="item.weight"
-                placeholder="Weight"
-                step="0.01"
-              />
               <button
                 type="button"
                 @click="removeTechStackItem(index)"
@@ -425,12 +495,23 @@
                 placeholder="Description"
                 rows="2"
               ></textarea>
-              <input
+              <!-- <input
                 type="number"
                 v-model.number="item.weight"
                 placeholder="Weight"
                 step="0.01"
-              />
+              /> -->
+              <div class="slider-container">
+                <input
+                  type="range"
+                  v-model.number="item.weight"
+                  min="1"
+                  max="10"
+                  step="1"
+                  class="weight-slider"
+                />
+                <span class="slider-value">{{ item.weight }}</span>
+              </div>
               <button
                 type="button"
                 @click="removeSuccessCriterion('immediate', index)"
@@ -460,12 +541,23 @@
                 placeholder="Description"
                 rows="2"
               ></textarea>
-              <input
+              <!-- <input
                 type="number"
                 v-model.number="item.weight"
                 placeholder="Weight"
                 step="0.01"
-              />
+              /> -->
+              <div class="slider-container">
+                <input
+                  type="range"
+                  v-model.number="item.weight"
+                  min="1"
+                  max="10"
+                  step="1"
+                  class="weight-slider"
+                />
+                <span class="slider-value">{{ item.weight }}</span>
+              </div>
               <button
                 type="button"
                 @click="removeSuccessCriterion('longTerm', index)"
@@ -559,12 +651,12 @@ const initialTechStackItem = () => ({
   level: "intermediate",
   realWorldApplication: "",
   redFlags: [],
-  weight: 0.1,
+  weight: 1,
 });
 const initialSuccessCriterion = () => ({
   metric: "",
   description: "",
-  weight: 0.2,
+  weight: 1,
 });
 const defaultJobStructure = () => ({
   id: null, // Important for identifying the job
@@ -598,6 +690,14 @@ const defaultJobStructure = () => ({
   successCriteria: {
     immediate: [],
     longTerm: [],
+  },
+  workEnvironment: {
+    techMaturity: "emerging",
+    structure: "hierarchical",
+    communication: "async-first",
+    pace: "steady-deliberate",
+    growthExpectiations: "structured-paths",
+    collaboration: "individual-contribution",
   },
   // any other fields that might be in props.job but not explicitly defined here
   // will be spread in by { ...props.job }
@@ -647,6 +747,10 @@ function initializeFormData() {
             ...s,
           }))
         : [],
+    },
+    workEnvironment: {
+      ...defaults.workEnvironment,
+      ...(jobData.workEnvironment || {}),
     },
     // Ensure all top-level array fields are indeed arrays
     requiredSkills: Array.isArray(jobData.requiredSkills)
@@ -733,25 +837,25 @@ const removeSuccessCriterion = (period, index) => {
 function handleSubmit() {
   const finalFormData = JSON.parse(JSON.stringify(formData.value));
 
-  // Round all weight values to 2 decimal places
-  if (finalFormData.techStack?.stack) {
-    finalFormData.techStack.stack.forEach((item) => {
-      if (typeof item.weight === "number") {
-        item.weight = Math.round(item.weight * 100) / 100;
-      }
-    });
-  }
+  // // Round all weight values to 2 decimal places
+  // if (finalFormData.techStack?.stack) {
+  //   finalFormData.techStack.stack.forEach((item) => {
+  //     if (typeof item.weight === "number") {
+  //       item.weight = Math.round(item.weight * 100) / 100;
+  //     }
+  //   });
+  // }
 
-  // Do the same for success criteria weights
-  ["immediate", "longTerm"].forEach((period) => {
-    if (finalFormData.successCriteria?.[period]) {
-      finalFormData.successCriteria[period].forEach((item) => {
-        if (typeof item.weight === "number") {
-          item.weight = Math.round(item.weight * 100) / 100;
-        }
-      });
-    }
-  });
+  // // Do the same for success criteria weights
+  // ["immediate", "longTerm"].forEach((period) => {
+  //   if (finalFormData.successCriteria?.[period]) {
+  //     finalFormData.successCriteria[period].forEach((item) => {
+  //       if (typeof item.weight === "number") {
+  //         item.weight = Math.round(item.weight * 100) / 100;
+  //       }
+  //     });
+  //   }
+  // });
 
   emit("submit", finalFormData);
 }
@@ -982,5 +1086,59 @@ textarea {
 }
 .btn-cancel:hover {
   background-color: #6c7a7b;
+}
+
+.slider-container {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  margin: 0.5rem 0;
+}
+
+.weight-slider {
+  flex-grow: 1;
+  height: 6px;
+  -webkit-appearance: none;
+  appearance: none;
+  background: #e2e8f0;
+  border-radius: 3px;
+  outline: none;
+}
+
+.weight-slider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 18px;
+  height: 18px;
+  background: #4a90e2;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.weight-slider::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  background: #4a90e2;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background 0.2s;
+  border: none;
+}
+
+.weight-slider::-webkit-slider-thumb:hover {
+  background: #357abd;
+}
+
+.weight-slider::-moz-range-thumb:hover {
+  background: #357abd;
+}
+
+.slider-value {
+  min-width: 2rem;
+  text-align: center;
+  font-weight: 600;
+  color: #4a5568;
+  font-size: 0.9rem;
 }
 </style>

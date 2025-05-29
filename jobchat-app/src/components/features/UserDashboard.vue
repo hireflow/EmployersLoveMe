@@ -24,17 +24,6 @@ const logoUrl = ref("");
 
 const companyValues = ref([{ name: "", description: "", weight: 50 }]);
 
-// UPDATED: Work Environment defaults, ensure teamSize is a string for select
-const workEnvironment = ref({
-  techMaturity: "medium",
-  structure: "hybrid",
-  communication: "sync-first",
-  pace: "project-based",
-  growthExpectiations: "mentored",
-  collaboration: "departmental",
-  teamSize: "small", // e.g., "small" (for 2-9 members)
-});
-
 const errorMessage = ref("");
 const successMessage = ref("");
 
@@ -56,15 +45,6 @@ const resetFormFields = () => {
   missionStatement.value = "";
   logoUrl.value = "";
   companyValues.value = [{ name: "", description: "", weight: 50 }];
-  workEnvironment.value = {
-    techMaturity: "medium",
-    structure: "hybrid",
-    communication: "sync-first",
-    pace: "project-based",
-    growthExpectiations: "mentored",
-    collaboration: "departmental",
-    teamSize: "small", // Reset to a default for select
-  };
   editingOrgId.value = null;
 };
 
@@ -114,7 +94,6 @@ const handleFormSubmit = async () => {
       missionStatement: missionStatement.value,
       logoUrl: logoUrl.value,
       companyValues: filteredCompanyValues,
-      workEnvironment: workEnvironment.value,
     };
 
     if (isEditMode.value && editingOrgId.value) {
@@ -208,17 +187,6 @@ const openEditForm = (org) => {
   if (!companyValues.value.length) {
     companyValues.value.push({ name: "", description: "", weight: 50 });
   }
-
-  const defaultWorkEnv = {
-    techMaturity: "medium",
-    structure: "hybrid",
-    communication: "sync-first",
-    pace: "project-based",
-    growthExpectiations: "mentored",
-    collaboration: "departmental",
-    teamSize: "small",
-  };
-  workEnvironment.value = { ...defaultWorkEnv, ...(org.workEnvironment || {}) };
 
   formActive.value = true;
   errorMessage.value = "";
@@ -405,25 +373,6 @@ const deleteOrg = async () => {
               </p>
               <p v-if="org.companySize">
                 <span class="info-label">Size:</span> {{ org.companySize }}
-              </p>
-            </div>
-            <div class="details-section">
-              <h4>Work Style</h4>
-              <p v-if="org.workEnvironment?.pace">
-                <span class="info-label">Pace:</span>
-                {{ org.workEnvironment.pace }}
-              </p>
-              <p v-if="org.workEnvironment?.collaboration">
-                <span class="info-label">Collaboration:</span>
-                {{ org.workEnvironment.collaboration }}
-              </p>
-              <p
-                v-if="
-                  !org.workEnvironment?.pace &&
-                  !org.workEnvironment?.collaboration
-                "
-              >
-                Details not specified.
               </p>
             </div>
           </div>
@@ -696,172 +645,6 @@ const deleteOrg = async () => {
                 </svg>
                 Add Another Value
               </button>
-            </fieldset>
-
-            <fieldset>
-              <legend>Work Environment & Culture</legend>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="techMaturity" class="form-label"
-                    >Technology Adoption</label
-                  >
-                  <select
-                    id="techMaturity"
-                    v-model="workEnvironment.techMaturity"
-                    :disabled="isSubmitting"
-                    class="form-select"
-                  >
-                    <option value="emerging">
-                      Emerging (Exploring new tech)
-                    </option>
-                    <option value="established">
-                      Established (Proven, stable tech)
-                    </option>
-                    <option value="leading-edge">
-                      Leading-Edge (Cutting-edge, experimental)
-                    </option>
-                    <option value="mixed">
-                      Mixed (Varies by team/project)
-                    </option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label for="structure" class="form-label"
-                    >Team Structure</label
-                  >
-                  <select
-                    id="structure"
-                    v-model="workEnvironment.structure"
-                    :disabled="isSubmitting"
-                    class="form-select"
-                  >
-                    <option value="hierarchical">
-                      Hierarchical (Clear reporting lines)
-                    </option>
-                    <option value="flat">
-                      Flat (Minimal management layers)
-                    </option>
-                    <option value="matrix">
-                      Matrix (Reporting to multiple managers)
-                    </option>
-                    <option value="autonomous-teams">
-                      Autonomous Teams (Self-managed units)
-                    </option>
-                    <option value="hybrid">
-                      Hybrid (Combination of structures)
-                    </option>
-                  </select>
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="communication" class="form-label"
-                    >Primary Communication Style</label
-                  >
-                  <select
-                    id="communication"
-                    v-model="workEnvironment.communication"
-                    :disabled="isSubmitting"
-                    class="form-select"
-                  >
-                    <option value="async-first">
-                      Async-First (Documentation, written)
-                    </option>
-                    <option value="sync-first">
-                      Sync-First (Meetings, real-time chat)
-                    </option>
-                    <option value="balanced">
-                      Balanced (Mix of async and sync)
-                    </option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label for="pace" class="form-label">Work Pace</label>
-                  <select
-                    id="pace"
-                    v-model="workEnvironment.pace"
-                    :disabled="isSubmitting"
-                    class="form-select"
-                  >
-                    <option value="steady-deliberate">
-                      Steady & Deliberate
-                    </option>
-                    <option value="fast-paced-agile">Fast-Paced & Agile</option>
-                    <option value="sprint-based">
-                      Sprint-Based (Fixed cycles)
-                    </option>
-                    <option value="project-driven">
-                      Project-Driven (Variable pace)
-                    </option>
-                  </select>
-                </div>
-              </div>
-              <div class="form-row">
-                <div class="form-group">
-                  <label for="growthExpectiations" class="form-label"
-                    >Career Growth Approach</label
-                  >
-                  <select
-                    id="growthExpectiations"
-                    v-model="workEnvironment.growthExpectiations"
-                    :disabled="isSubmitting"
-                    class="form-select"
-                  >
-                    <option value="structured-paths">
-                      Structured Paths (Defined career ladders)
-                    </option>
-                    <option value="self-directed-learning">
-                      Self-Directed Learning (Autonomy in growth)
-                    </option>
-                    <option value="mentorship-coaching">
-                      Mentorship & Coaching Focus
-                    </option>
-                    <option value="skill-based-advancement">
-                      Skill-Based Advancement
-                    </option>
-                  </select>
-                </div>
-                <div class="form-group">
-                  <label for="collaboration" class="form-label"
-                    >Collaboration Model</label
-                  >
-                  <select
-                    id="collaboration"
-                    v-model="workEnvironment.collaboration"
-                    :disabled="isSubmitting"
-                    class="form-select"
-                  >
-                    <option value="individual-contribution">
-                      Primarily Individual Contribution
-                    </option>
-                    <option value="team-centric">Team-Centric Projects</option>
-                    <option value="cross-functional-squads">
-                      Cross-Functional Squads
-                    </option>
-                    <option value="departmental-silos">
-                      Departmental Silos with Handoffs
-                    </option>
-                  </select>
-                </div>
-              </div>
-              <div class="form-group">
-                <label for="teamSize" class="form-label"
-                  >Typical Project Team Size</label
-                >
-                <select
-                  id="teamSize"
-                  v-model="workEnvironment.teamSize"
-                  :disabled="isSubmitting"
-                  class="form-select"
-                >
-                  <option disabled value="">Select typical team size</option>
-                  <option value="solo">Solo / Individual Contributor</option>
-                  <option value="small">Small (2-9 members)</option>
-                  <option value="medium">Medium (10-20 members)</option>
-                  <option value="large">Large (21+ members)</option>
-                  <option value="variable">Variable / Project-dependent</option>
-                </select>
-              </div>
             </fieldset>
 
             <div class="form-actions">

@@ -15,12 +15,14 @@ const candidateAuthStore = useCandidateAuthStore();
 const functions = getFunctions(app);
 
 const sendChat = httpsCallable(functions, "geminiChatbot");
+const applyToJobCallable = httpsCallable(functions, "applyToJob");
 const parseForm = httpsCallable(functions, "parseApplicationForm");
 
 const currentMessageForGemini = ref("");
 const historyForGemini = ref([]);
 
 const isSendingMessage = ref(false);
+const isSubmittingApplication = ref(false);
 const chatError = ref("");
 const showChatbot = ref(false);
 const employmentForm = ref({
@@ -55,7 +57,6 @@ const getPublicOrgDetailsCallable = httpsCallable(
   "getPublicOrgDetails"
 );
 
-
 async function sendMessageToGemini() {
   if (!currentMessageForGemini.value.trim()) return;
 
@@ -65,7 +66,7 @@ async function sendMessageToGemini() {
   try {
     const geminiMessage = {
       message: currentMessageForGemini.value,
-    }
+    };
 
     const result = await sendChat({
       candidateId: candidateAuthStore.candidate.uid,
@@ -77,13 +78,13 @@ async function sendMessageToGemini() {
     });
 
     historyForGemini.value.push({
-      parts: [{ text: currentMessageForGemini.value}],
-      role: 'user', // It's good practice to explicitly define the role for the outgoing message too.
+      parts: [{ text: currentMessageForGemini.value }],
+      role: "user", // It's good practice to explicitly define the role for the outgoing message too.
     });
 
     historyForGemini.value.push({
       parts: [{ text: result.data.response }],
-      role: 'model', 
+      role: "model",
     });
 
     currentMessageForGemini.value = "";
@@ -95,16 +96,48 @@ async function sendMessageToGemini() {
   }
 }
 
-const handleFormSubmitAndInitializeChatbot = async () => {
-  chatError.value = '';
+async function submitApplication() {
+  if (!applicationId.value || !jobDetails.value || !orgDetails.value) {
+    chatError.value = "Missing required information to submit application";
+    return;
+  }
 
-  if (!selectedResumeText.value || selectedResumeText.value.trim() === '') {
+  isSubmittingApplication.value = true;
+  chatError.value = "";
+
+  try {
+    const result = await applyToJobCallable({
+      candidateId: candidateAuthStore.candidate.uid,
+      jobId: jobDetails.value.id,
+      applicationId: applicationId.value,
+      messages: historyForGemini.value,
+      summaryToAddToReport: "Application submitted via chatbot interview",
+      scoreToAddToReport: null,
+    });
+
+    if (result.data.success) {
+      successMessage.value = "Application submitted successfully!";
+      // Optionally redirect to dashboard or show success state
+    } else {
+      chatError.value = result.data.message || "Failed to submit application";
+    }
+  } catch (error) {
+    console.error("Error submitting application:", error);
+    chatError.value = "Failed to submit application. Please try again.";
+  } finally {
+    isSubmittingApplication.value = false;
+  }
+}
+
+const handleFormSubmitAndInitializeChatbot = async () => {
+  chatError.value = "";
+
+  if (!selectedResumeText.value || selectedResumeText.value.trim() === "") {
     chatError.value = "Please paste the resume text.";
     return;
   }
 
   try {
-
     const payload = {
       resumeText: selectedResumeText.value,
       employmentStatus: employmentForm.value.employmentStatus,
@@ -120,7 +153,9 @@ const handleFormSubmitAndInitializeChatbot = async () => {
     if (result.data && result.data.success) {
       showChatbot.value = true;
     } else {
-      chatError.value = (result.data && result.data.message) || "Unknown error during submission.";
+      chatError.value =
+        (result.data && result.data.message) ||
+        "Unknown error during submission.";
       console.error("Client: Server reported non-success:", result.data);
     }
   } catch (error) {
@@ -132,9 +167,6 @@ const handleFormSubmitAndInitializeChatbot = async () => {
     }
   }
 };
-
-
-
 
 // Function to format Firestore Timestamps or date strings
 const formatTimestamp = (timestampInput) => {
@@ -425,8 +457,10 @@ onMounted(async () => {
         <textarea
           id="resumeText"
           v-model="selectedResumeText"
-          rows="15"                     placeholder="Copy and paste your resume content here..."
-          class="form-input text-area"  ></textarea>
+          rows="15"
+          placeholder="Copy and paste your resume content here..."
+          class="form-input text-area"
+        ></textarea>
         <small class="form-text-muted">
           Please copy the plain text from your resume.
         </small>
@@ -547,6 +581,17 @@ onMounted(async () => {
           >
             <span v-if="isSendingMessage">Sending...</span>
             <span v-else>Send</span>
+          </button>
+        </div>
+
+        <div class="submit-application-container">
+          <button
+            @click="submitApplication"
+            :disabled="isSubmittingApplication"
+            class="submit-application-button"
+          >
+            <span v-if="isSubmittingApplication">Submitting...</span>
+            <span v-else>Submit Application</span>
           </button>
         </div>
       </div>
@@ -888,6 +933,35 @@ onMounted(async () => {
 
 .send-button:disabled {
   background: #b0bec5;
+  cursor: not-allowed;
+}
+
+.submit-application-container {
+  padding: 1rem;
+  border-top: 1px solid #e0e0e0;
+  background: #f8f9fa;
+  text-align: center;
+}
+
+.submit-application-button {
+  padding: 0.75rem 2rem;
+  background: #4caf50;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  font-size: 1rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 0.2s;
+  min-width: 200px;
+}
+
+.submit-application-button:hover:not(:disabled) {
+  background: #388e3c;
+}
+
+.submit-application-button:disabled {
+  background: #a5d6a7;
   cursor: not-allowed;
 }
 </style>

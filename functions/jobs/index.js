@@ -36,24 +36,30 @@ exports.getPublicJobDetails = onCall(async (request) => {
       requiredEducation: jobData.requiredEducation || [],
       requiredCertifications: jobData.requiredCertifications || [],
 
-      // For techStack, decide what's public. Example:
+      // Work Environment fields
+      workEnvironment: {
+        techMaturity: jobData.workEnvironment?.techMaturity || "medium",
+        structure: jobData.workEnvironment?.structure || "hybrid",
+        communication: jobData.workEnvironment?.communication || "sync-first",
+        pace: jobData.workEnvironment?.pace || "project-based",
+        growthExpectiations: jobData.workEnvironment?.growthExpectiations || "mentored",
+        collaboration: jobData.workEnvironment?.collaboration || "departmental",
+      },
+
+      // For techStack, decide what's public
       techStack: {
         stack: (jobData.techStack?.stack || []).map((item) => ({
           skill: item.skill,
           level: item.level,
         })), // Only skill and level from stack
-
         architecture: jobData.techStack?.architecture || "",
         practices: jobData.techStack?.practices || [],
-        // Avoid exposing redFlags, weights, detailed challenges or scale unless intended
       },
 
       travelRequirements: jobData.travelRequirements || "N/A",
-      salaryRange: jobData.salaryRange || "Not disclosed", // Or be more specific if you have a policy
-      teamSize: jobData.teamSize || "N/A", // If teamSize is still relevant for jobs
+      salaryRange: jobData.salaryRange || "Not disclosed",
+      teamSize: jobData.teamSize || "N/A",
       candidateResourceLinks: jobData.candidateResourceLinks || [],
-      
-      // Consider if parts of successCriteria or candidatePersona are public
     };
 
     return {

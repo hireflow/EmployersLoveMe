@@ -209,7 +209,6 @@ const handleSignInPanelAction = () => {
             type="email"
             placeholder="Email"
             required
-            disabled
           />
           <input
             v-model="phoneForSignup"

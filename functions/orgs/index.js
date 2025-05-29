@@ -62,7 +62,18 @@ exports.createJob = onCall(async (request) => {
       jobDescription: data.jobDescription || "", // Rich text expected
       jobLocation: data.jobLocation || "",
       travelRequirements: data.travelRequirements || "",
-      salaryRange: data.salaryRange || "", // New field
+      salaryRange: data.salaryRange || "",
+      teamSize: data.teamSize || "",
+
+      // Work Environment fields MOVED FROM ORG TO JOB
+      workEnvironment: {
+        techMaturity: data.workEnvironment?.techMaturity || "medium",
+        structure: data.workEnvironment?.structure || "hybrid",
+        communication: data.workEnvironment?.communication || "sync-first",
+        pace: data.workEnvironment?.pace || "project-based",
+        growthExpectiations: data.workEnvironment?.growthExpectiations || "mentored",
+        collaboration: data.workEnvironment?.collaboration || "departmental",
+      },
 
       techStack: data.techStack || {
         // Provide defaults for sub-properties if necessary
@@ -138,7 +149,7 @@ exports.updateJobById = onCall(async (request) => {
       "travelRequirements",
       "salaryRange",
       "candidatePersona",
-      "teamSize", // Added teamSize here
+      "teamSize",
     ];
     const arrayFields = [
       "hiringManagerIds",
@@ -149,7 +160,7 @@ exports.updateJobById = onCall(async (request) => {
       "requiredQuestions",
       "candidateResourceLinks",
     ];
-    const objectFields = ["techStack", "successCriteria"];
+    const objectFields = ["techStack", "successCriteria", "workEnvironment"];
 
     topLevelFields.forEach((field) => {
       if (updatedJobData.hasOwnProperty(field)) {
@@ -176,9 +187,20 @@ exports.updateJobById = onCall(async (request) => {
         typeof updatedJobData[field] === "object" &&
         updatedJobData[field] !== null
       ) {
-        // Potentially add deeper validation/merging for nested objects if needed
-        // For now, direct assignment if present and is an object.
-        payload[field] = updatedJobData[field];
+        if (field === "workEnvironment") {
+          // Ensure all work environment fields have defaults
+          const defaultWorkEnv = {
+            techMaturity: "medium",
+            structure: "hybrid",
+            communication: "sync-first",
+            pace: "project-based",
+            growthExpectiations: "mentored",
+            collaboration: "departmental",
+          };
+          payload[field] = { ...defaultWorkEnv, ...updatedJobData[field] };
+        } else {
+          payload[field] = updatedJobData[field];
+        }
       } else if (updatedJobData.hasOwnProperty(field)) {
         console.warn(
           `Field ${field} was expected to be an object but was not. Skipping update for this field.`
@@ -340,8 +362,6 @@ exports.updateOrg = onCall(async (request) => {
       "logoUrl",
       "missionStatement",
       "companyValues",
-      "workEnvironment",
-      // Add other fields from your schema that are user-editable but not payment/stripe related
     ];
 
     for (const key of allowedFields) {
@@ -363,26 +383,7 @@ exports.updateOrg = onCall(async (request) => {
             }))
             .filter((cv) => cv.name || cv.description); // Filter out completely empty ones
         }
-        // Basic validation for workEnvironment (ensure it's an object)
-        if (key === "workEnvironment") {
-          if (typeof updates[key] !== "object" || updates[key] === null) {
-            console.warn("workEnvironment update skipped: not an object");
-            continue;
-          }
-          // Ensure all nested properties exist to avoid Firestore errors with undefined
-          const defaultWorkEnv = {
-            techMaturity: "",
-            structure: "",
-            communication: "",
-            pace: "",
-            growthExpectiations: "",
-            collaboration: "",
-            teamSize: "",
-          };
-          updateData[key] = { ...defaultWorkEnv, ...updates[key] };
-        } else {
-          updateData[key] = updates[key];
-        }
+        updateData[key] = updates[key];
       }
     }
 
@@ -665,16 +666,6 @@ exports.createOrg = onCall(async (request) => {
       logoUrl: data.logoUrl || "",
       missionStatement: data.missionStatement || "",
       companyValues: data.companyValues || [], // From schema
-      workEnvironment: data.workEnvironment || {
-        // From schema, with defaults
-        techMaturity: "medium",
-        structure: "hybrid",
-        communication: "sync-first",
-        pace: "project-based",
-        growthExpectiations: "mentored",
-        collaboration: "departmental",
-        teamSize: "",
-      },
       hiringManagers: [data.userId], // Schema: hiringManagers: array [userId]
       jobs: [], // Schema: jobs: array [jobId], initially empty
 
