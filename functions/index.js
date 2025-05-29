@@ -27,6 +27,7 @@ exports.createApplication = applicationFunctions.createApplication;
 exports.findOneOrManyApplicationsById =
   applicationFunctions.findOneOrManyApplicationsById;
 exports.applyToJob = applicationFunctions.applyToJob;
+exports.parseApplicationForm = applicationFunctions.parseApplicationForm;
 
 // Export auth functions
 exports.registerUser = authFunctions.registerUser;
