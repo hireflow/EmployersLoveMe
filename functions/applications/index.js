@@ -341,11 +341,9 @@ exports.parseApplicationForm = onCall(async (request) => {
 
   // 2. Validate Resume Text
   if (!resumeText || typeof resumeText !== 'string' || resumeText.trim() === '') {
-    console.error(`[${Date.now()}] Invalid or missing resumeText in payload.`);
-    throw new HttpsError(
-      'invalid-argument',
-      'The `resumeText` field is required and must be a non-empty string.'
-    );
+    return {
+      success: true,
+    };
   }
 
   const candidateData = {
