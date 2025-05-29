@@ -16,10 +16,8 @@ const functions = getFunctions(app);
 
 const sendChat = httpsCallable(functions, "geminiChatbot");
 
-// <<<<<<< SWIFTLY-35-applicant-tracking
-// const applyToJobCallable = httpsCallable(functions, "applyToJob");
 
-// >>>>>>> main
+// const applyToJobCallable = httpsCallable(functions, "applyToJob");
 const parseForm = httpsCallable(functions, "parseApplicationForm");
 
 
