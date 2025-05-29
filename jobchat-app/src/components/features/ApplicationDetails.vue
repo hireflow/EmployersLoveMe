@@ -15,6 +15,8 @@ const candidateAuthStore = useCandidateAuthStore();
 const functions = getFunctions(app);
 
 const sendChat = httpsCallable(functions, "geminiChatbot");
+const parseForm = httpsCallable(functions, "parseApplicationForm");
+
 const currentMessageForGemini = ref("");
 const historyForGemini = ref([]);
 
@@ -27,71 +29,7 @@ const employmentForm = ref({
   currentSalary: "",
   noticePeriod: "",
 });
-
-async function sendMessageToGemini() {
-  if (!currentMessageForGemini.value.trim()) return;
-
-  isSendingMessage.value = true;
-  chatError.value = "";
-
-  try {
-    const geminiMessage = {
-      message: currentMessageForGemini.value,
-    }
-
-    const result = await sendChat({
-      history: historyForGemini.value,
-      message: geminiMessage,
-    });
-
-    historyForGemini.value.push({
-      parts: [{ text: currentMessageForGemini.value}],
-      role: 'user', // It's good practice to explicitly define the role for the outgoing message too.
-    });
-
-    historyForGemini.value.push({
-      parts: [{ text: result.data.response }],
-      role: 'model', 
-    });
-
-    currentMessageForGemini.value = "";
-  } catch (error) {
-    chatError.value = "Failed to send message. Please try again.";
-    console.error("Chat error:", error);
-  } finally {
-    isSendingMessage.value = false;
-  }
-}
-
-async function handleFormSubmitAndInitializeChatbot() {
-  // this is where we will send the user information and the other information
-  // that the chatbot needs to initialize the environment
-
-  if (!employmentForm.value.employmentStatus) {
-    chatError.value = "Please fill in all required fields";
-    return;
-  }
-
-  try {
-    showChatbot.value = true;
-  } catch (error) {
-    chatError.value = "Failed to submit form. Please try again.";
-    console.error("Form submission error:", error);
-  }
-}
-
-//  const response = await fetch(FUNCTION_URL, {
-//       method: 'POST',
-//       headers: {
-//         'Content-Type': 'application/json',
-//       },
-//       body: JSON.stringify({
-//         message: currentMessageForGemini.parts[0].text, // The current user message
-//         history: historyForGemini // The rest of the conversation history
-//       }),
-//     });
-
-// function url is going to be our callable cloud function
+const selectedResumeText = ref(null);
 
 // Refs for application and report IDs
 const applicationId = ref(null);
@@ -116,6 +54,87 @@ const getPublicOrgDetailsCallable = httpsCallable(
   functions,
   "getPublicOrgDetails"
 );
+
+
+async function sendMessageToGemini() {
+  if (!currentMessageForGemini.value.trim()) return;
+
+  isSendingMessage.value = true;
+  chatError.value = "";
+
+  try {
+    const geminiMessage = {
+      message: currentMessageForGemini.value,
+    }
+
+    const result = await sendChat({
+      candidateId: candidateAuthStore.candidate.uid,
+      orgId: route.params.orgId,
+      jobId: route.params.jobId,
+      applicationId: applicationId.value,
+      history: historyForGemini.value,
+      message: geminiMessage,
+    });
+
+    historyForGemini.value.push({
+      parts: [{ text: currentMessageForGemini.value}],
+      role: 'user', // It's good practice to explicitly define the role for the outgoing message too.
+    });
+
+    historyForGemini.value.push({
+      parts: [{ text: result.data.response }],
+      role: 'model', 
+    });
+
+    currentMessageForGemini.value = "";
+  } catch (error) {
+    chatError.value = "Failed to send message. Please try again.";
+    console.error("Chat error:", error);
+  } finally {
+    isSendingMessage.value = false;
+  }
+}
+
+const handleFormSubmitAndInitializeChatbot = async () => {
+  chatError.value = '';
+
+  if (!selectedResumeText.value || selectedResumeText.value.trim() === '') {
+    chatError.value = "Please paste the resume text.";
+    return;
+  }
+
+  try {
+
+    const payload = {
+      resumeText: selectedResumeText.value,
+      employmentStatus: employmentForm.value.employmentStatus,
+      yearsOfExperience: employmentForm.value.yearsOfExperience || "",
+      currentSalary: employmentForm.value.currentSalary || "",
+      noticePeriod: employmentForm.value.noticePeriod || "",
+      applicationId: applicationId.value || "",
+      userId: candidateAuthStore.candidate.uid,
+    };
+
+    const result = await parseForm(payload);
+
+    if (result.data && result.data.success) {
+      showChatbot.value = true;
+    } else {
+      chatError.value = (result.data && result.data.message) || "Unknown error during submission.";
+      console.error("Client: Server reported non-success:", result.data);
+    }
+  } catch (error) {
+    console.error("Client: Cloud Function call failed:", error);
+    if (error.code) {
+      chatError.value = `Error (${error.code}): ${error.message}`;
+    } else {
+      chatError.value = "Failed to submit form. Please try again.";
+    }
+  }
+};
+
+
+
 
 // Function to format Firestore Timestamps or date strings
 const formatTimestamp = (timestampInput) => {
@@ -400,6 +419,18 @@ onMounted(async () => {
           <strong>Industry:</strong> {{ orgDetails.industry }}
         </p>
       </section>
+
+      <div class="form-group">
+        <label for="resumeText">Paste Resume Text Here</label>
+        <textarea
+          id="resumeText"
+          v-model="selectedResumeText"
+          rows="15"                     placeholder="Copy and paste your resume content here..."
+          class="form-input text-area"  ></textarea>
+        <small class="form-text-muted">
+          Please copy the plain text from your resume.
+        </small>
+      </div>
 
       <div class="application-form" v-if="!showChatbot">
         <h3>Complete Your Application</h3>

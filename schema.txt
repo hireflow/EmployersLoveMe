@@ -13,26 +13,78 @@ users
 jobs
 {
     jobID:{
-        "jobTitle":
+        *"jobTitle":
         "applicationDeadline": "2025-04-29T14:00:00Z",
         "applications": array or subcollection?,
         "hiringManagerId": array []
+        *riskTolerance: "high"
         "orgId":
         "status":
         "createdAt": "2025-04-29T12:00:00Z",
-        "requiredEducation": array []
-        "requiredCertifications": array []
-        "requiredSkills": array []
-        "preferredSkills": array [],
-        "requiredQuestions": array []
+        *"requiredEducation": array []
+        *"requiredCertifications": array []
+        *"requiredSkills": array []
+        *"preferredSkills": array [],
+        *"requiredQuestions": array []
         "candidateResourceLinks": [] array,
-        "jobType":
-        "interviewStages":
-        "jobDepartment":
-        "jobDescription":
-        "jobLocation":
-        "teamSize":
-        "techStack": array []
+        *"jobType":
+        *"interviewStages":
+        *"jobDepartment":
+        *"jobDescription": \\query for influence, level, and day-to-day
+        *"jobLocation":
+        *"techStack": {
+            stack: [ \\ ask for tools, technologies, other platforms
+                {
+                    skill: "React",
+                    level: "expert",
+                    realWorldApplication: "Build complex dashboards with real-time data", 
+                    redFlags: ["only basic components", "no performance optimization", "no testing"],
+                    weight: 0.2
+                },
+                {
+                    skill: "Node.js/Backend",
+                    level: "advanced", 
+                    realWorldApplication: "Design APIs for microservices handling 10k+ RPS",
+                    redFlags: ["no async understanding", "poor error handling", "security gaps"],
+                    weight: 0.18
+                },
+                {
+                    skill: "System Design",
+                    level: "intermediate",
+                    realWorldApplication: "Architect solutions for scaling challenges",
+                    redFlags: ["no scalability awareness", "single point of failure designs"],
+                    weight: 0.15
+                }
+            ],
+            architecture: "microservices",
+            scale: "10M+ users",
+            challenges: ["real-time sync", "global distribution", "rapid scaling"],
+            practices: ["TDD", "CI/CD", "code reviews", "pair programming"],
+        }
+         successCriteria: {
+            immediate: {
+            { metric: "Feature velocity", desciption: "2-3 major features/quarter", weight: 0.25 },
+            { metric: "Code quality", description: "<2 bugs per feature", weight: 0.2 },
+            { metric: "Team integration", description: "Effective collaboration within 30 days", weight: 0.15 },
+            { metric: "Technical ramp", desciption: "Independent contributions within 60 days", weight: 0.2 },
+            { metric: "Mentoring impact", description: "1-2 junior devs show growth", weight: 0.2 }
+            },
+            longTerm: {
+            { metric: "Technical leadership", description: "Drive architecture decisions", weight: 0.3 },
+            { metric: "Process improvement", description: "Improve team efficiency", weight: 0.25 },
+            { metric: "Knowledge scaling", description: "Document and share expertise", weight: 0.2 },
+            { metric: "Innovation", description: "Introduce new technologies/practices", weight: 0.25 }
+            }
+        },
+        *workEnvironment:
+            *techMaturity: "high"
+            *structure: "autonomous",
+            *communication: "async-first",           
+            *pace: "sprint-based",
+            *growthExpectiations: "self-directed",
+            *collaboration: "cross-functional"
+            "teamSize":
+        "candidatePersona": \\describe your ideal candidate. how do they work with other/communicatte and balh
         "travelRequirements"
         "salaryRange"
     }
@@ -41,15 +93,25 @@ jobs
 org
 {
     orgID:{
-        companyDescription:
-        companyName:
-        companySize:
+        *companyDescription:
+        *companyName:
+        *companySize:
         createdAt:
         hiringManagers: array [userId]
-        industry:
-        location:
+        *industry:
+        *location:
         logoUrl:
-        missionStatement: 
+        *missionStatement:
+        *companyValues: [
+            {
+                name: trust
+                description: 
+                extractedKeywords?:
+                weight: 
+            }
+        ]
+
+        
         jobs: array [jobId1]
         paymentPlanCanceledDate:
         paymentPlanCanceledReason:
@@ -65,11 +127,11 @@ org
 candidates
 {	
     candidateID: {
-        "name": "Jane Doe",
+        *"name": "Jane Doe",
         "email": "janedoe@example.com",
         "phone": "555-123-4567",
-        "resumeUrl": "https://example.com/resume/jane.pdf",
-        "resumeBreakdown": {}
+        *"resumeUrl": "https://example.com/resume/jane.pdf",
+        *"resumeBreakdown": {}
         “applications”: [applicationID, applicationID]
         "createdAt": "2025-04-29T12:00:00Z",
         "updatedAt": "2025-04-29T12:00:00Z"

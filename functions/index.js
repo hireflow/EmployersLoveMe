@@ -27,6 +27,7 @@ exports.createApplication = applicationFunctions.createApplication;
 exports.findOneOrManyApplicationsById =
   applicationFunctions.findOneOrManyApplicationsById;
 exports.applyToJob = applicationFunctions.applyToJob;
+exports.parseApplicationForm = applicationFunctions.parseApplicationForm;
 
 // Export auth functions
 exports.registerUser = authFunctions.registerUser;
@@ -43,6 +44,7 @@ exports.fetchUserOrgsById = orgFunctions.fetchUserOrgsById;
 exports.deleteJobById = orgFunctions.deleteJobById;
 exports.deleteOrg = orgFunctions.deleteOrg;
 exports.getPublicOrgDetails = orgFunctions.getPublicOrgDetails;
+exports.updateOrg = orgFunctions.updateOrg;
 
 // candidate functions
 exports.checkCandidateEmailExists =
