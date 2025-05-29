@@ -1,6 +1,107 @@
 const { onCall, HttpsError } = require("firebase-functions/v2/https");
 const admin = require("firebase-admin");
 const functions = require("firebase-functions"); // Add this import
+const Ajv = require("ajv");
+const addFormats = require("ajv-formats");
+const schemas = require("./schema");
+const { GoogleGenerativeAI } = require("@google/generative-ai");
+
+const ajv = new Ajv({ allErrors: true });
+addFormats(ajv);
+
+let genAIInstance;
+async function initializeGenerativeAI() {
+  const GEMINI_KEY = process.env.GEMINI_API_KEY;
+  if (!GEMINI_KEY) {
+    logger.error("GEMINI_API_KEY environment variable is not set.");
+    throw new HttpsError(
+      "internal",
+      "AI service is not configured. Missing API key."
+    );
+  }
+
+  genAIInstance = new GoogleGenerativeAI(GEMINI_KEY);
+  return genAIInstance;
+}
+
+async function extractDataWithAI(
+  textInput,
+  targetSchemaObject,
+  modelName,
+  customInstructions = ""
+) {
+  const ai = await initializeGenerativeAI();
+
+  const sysPrompt = `
+        You are an expert data extraction AI. Your sole task is to analyze the provided TEXT INPUT
+        and generate a JSON object that strictly adheres to the TARGET JSON SCHEMA provided below.
+
+        TARGET JSON SCHEMA: ${JSON.stringify(targetSchemaObject, null, 2)}
+        ADDITIONAL INSTRUCTIONS: ${
+          customInstructions || "No additional instructions"
+        }
+
+        Based on the TEXT INPUT, generate ONLY a valid JSON object.
+        - If information for a specific field is not found in the text, use 'null' for optional fields.
+        - If a field is an array and no items are found, provide an empty array [].
+        - Do NOT include any explanatory text, markdown formatting, or anything outside the valid JSON object itself.
+        - Your entire response output MUST be the JSON object.
+    `;
+
+  const model = ai.getGenerativeModel({
+    model: modelName,
+    systemInstruction: sysPrompt,
+    generationConfig: { temperature: 0.1 },
+  });
+
+  try {
+    const result = await model.generateContent(textInput);
+    const response = await result.response;
+
+    if (!response.candidates?.[0]?.content?.parts?.[0]?.text) {
+      throw new Error("AI did not return valid content for extraction.");
+    }
+
+    const aiJsonText = response.candidates[0].content.parts[0].text.trim();
+    let extractedData;
+
+    try {
+      const cleanedJsonText = aiJsonText
+        .replace(/^```json\s*|\s*```$/g, "")
+        .trim();
+      if (!cleanedJsonText) {
+        throw new Error(
+          "Cleaned JSON text is empty after removing potential markdown."
+        );
+      }
+      extractedData = JSON.parse(cleanedJsonText);
+    } catch (parseError) {
+      throw new Error(
+        `AI extraction response was not valid JSON: ${parseError.message}`
+      );
+    }
+
+    const validateFunction = ajv.compile(targetSchemaObject);
+
+    if (!validateFunction(extractedData)) {
+      const errorDetails = validateFunction.errors
+        .map(
+          (err) =>
+            `${err.instancePath || "object"} ${err.message} (schema path: ${
+              err.schemaPath
+            })`
+        )
+        .join("; ");
+      throw new Error(
+        `AI output does not conform to schema. Validation Errors: ${errorDetails}`
+      );
+    }
+
+    return extractedData;
+  } catch (error) {
+    throw new Error(`Data extraction failed: ${error.message}`);
+  }
+}
 
 let GoogleGenAI; // Declare it outside the try/catch
 async function initializeGenAI() {
@@ -231,6 +332,7 @@ async function createPrompt({ candidateId, orgId, jobId, applicationId }) {
                     - Don't move on until you've thoroughly assessed each critical requirement
             * **Question Structure:** 
                 *Questions should be no longer than 50 words.
+                *Ask some open ended questions
                 *Try not to use filler words.
                 *Do not repeat any non-relevant information
                 *Try and keep both your questions and their responses short.
@@ -547,5 +649,48 @@ exports.geminiChatbot = onCall(async (request) => {
   } catch (error) {
     console.error("Error calling Gemini API:", error);
     throw new HttpsError("internal", "Failed to get response from AI");
+  }
+});
+
+exports.extractAndSaveData = onCall(async (request) => {
+  try {
+    const { orgId, jobId, textInput } = request.data;
+
+    if (!orgId || !jobId || !textInput) {
+      throw new HttpsError(
+        "invalid-argument",
+        "Missing required parameters: orgId, jobId, or textInput"
+      );
+    }
+
+    // Initialize AI service
+    const genAI = await initializeGenerativeAI();
+
+    // Extract data using the job schema
+    const extractedData = await extractDataWithAI(
+      textInput,
+      schemas.jobSchemaDefinition,
+      "gemini-1.5-flash-latest"
+    );
+
+    // Get the job document reference
+    const jobRef = admin.firestore().collection("jobs").doc(jobId);
+
+    // Update the job document with the extracted data
+    await jobRef.update({
+      ...extractedData,
+      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return {
+      success: true,
+      data: extractedData,
+    };
+  } catch (error) {
+    console.error("Error in extractAndSaveData:", error);
+    throw new HttpsError(
+      "internal",
+      `Data extraction failed: ${error.message}`
+    );
   }
 });

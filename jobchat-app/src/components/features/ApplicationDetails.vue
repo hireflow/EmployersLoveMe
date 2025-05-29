@@ -133,8 +133,7 @@ const handleFormSubmitAndInitializeChatbot = async () => {
   chatError.value = "";
   console.log("HELLO");
   if (
-    (!selectedResumeText.value ||
-    selectedResumeText.value.trim() === "") &&
+    (!selectedResumeText.value || selectedResumeText.value.trim() === "") &&
     !candidateAuthStore.candidateProfile.resumeBreakdown
   ) {
     chatError.value = "Please paste the resume text.";

@@ -54,6 +54,7 @@ exports.getCandidateProfile = candidateFunctions.getCandidateProfile;
 
 //gemini functions
 exports.geminiChatbot = chatbotFunctions.geminiChatbot;
+exports.extractAndSaveData = chatbotFunctions.extractAndSaveData;
 
 // Example HTTP function
 exports.helloWorld = onRequest(
