@@ -22,14 +22,14 @@ async function createPrompt({candidateId, orgId, jobId, applicationId}) {
         const jobSnapshot = await admin.firestore()
             .collection('jobs')
             .where(admin.firestore.FieldPath.documentId(), '==', jobId)
-            .select('jobTitle', 'jobDepartment', 'jobDescription', 'jobLocation', 'jobType', 'riskTolerance', 'requiredEducation', 'requiredCertifications', 'requiredSkills', 'preferredSkills', 'requiredQuestions', 'techStack', 'successCriteria', 'candidatePersona')
+            .select('jobTitle', 'jobDepartment', 'jobDescription', 'jobLocation', 'jobType', 'riskTolerance', 'requiredEducation', 'requiredCertifications', 'requiredSkills', 'preferredSkills', 'requiredQuestions', 'techStack', 'successCriteria', 'candidatePersona', 'workEnvironment')
             .get();
         const jobContext = jobSnapshot.docs[0].data();
 
         const orgSnapshot = await admin.firestore()
             .collection("orgs")
             .where(admin.firestore.FieldPath.documentId(), '==', orgId)
-            .select('companyName','companyDescription','companySize','industry','location','missionStatement','companyValues','workEnvironment')
+            .select('companyName','companyDescription','companySize','industry','location','missionStatement','companyValues')
             .get();
 
         const orgContext = orgSnapshot.docs[0].data();
@@ -78,13 +78,13 @@ async function createPrompt({candidateId, orgId, jobId, applicationId}) {
                     * ${(jobContext.successCriteria.longTerm || []).map(criterion => `${criterion.metric}: ${criterion.description} (Weight: ${criterion.weight})`).join('\n            * ')}
                 * *Instruction for AI:* Frame some questions to gauge the candidate's potential to meet these success criteria.
             * **Work Environment:**
-                * **Tech Maturity:** ${orgContext.workEnvironment.techMaturity}
-                * **Structure:** ${orgContext.workEnvironment.structure}
-                * **Communication:** ${orgContext.workEnvironment.communication}
-                * **Pace:** ${orgContext.workEnvironment.pace}
-                * **Growth Expectations:** ${orgContext.workEnvironment.growthExpectations}
-                * **Collaboration:** ${orgContext.workEnvironment.collaboration}
-                * **Team Size:** ${orgContext.workEnvironment.teamSize}
+                * **Tech Maturity:** ${jobContext.workEnvironment.techMaturity}
+                * **Structure:** ${jobContext.workEnvironment.structure}
+                * **Communication:** ${jobContext.workEnvironment.communication}
+                * **Pace:** ${jobContext.workEnvironment.pace}
+                * **Growth Expectations:** ${jobContext.workEnvironment.growthExpectations}
+                * **Collaboration:** ${jobContext.workEnvironment.collaboration}
+                * **Team Size:** ${jobContext.workEnvironment.teamSize}
                 * *Instruction for AI:* Consider these aspects when assessing fit and when the candidate asks questions about the environment.
             * **Ideal Candidate Persona:** "${jobContext.candidatePersona}"
             * **Required Questions/Topics (MUST BE COVERED):**
