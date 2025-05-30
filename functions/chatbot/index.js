@@ -390,208 +390,6 @@ async function createPrompt({ candidateId, orgId, jobId, applicationId }) {
   //     * **Skills from Resume:** ${(candidateContext.resumeBreakdown.skills || []).join(', ')}
   //     * **Recent Role:** ${candidateContext.resumeBreakdown.recentRole ? `${candidateContext.resumeBreakdown.recentRole.title} at ${candidateContext.resumeBreakdown.recentRole.company} for ${candidateContext.resumeBreakdown.recentRole.duration}` : 'N/A'}
 
-  // const geminiToolConfig = [
-  //     {
-  //         functionDeclarations: [
-  //             {
-  //                 name: "makeQuestion",
-  //                 description: "Generates a specific interview question tailored to the provided criteria. Use this to create targeted technical, behavioral, or situational questions based on job requirements, company values, or candidate background. The LLM should populate the context parameters with the most relevant information for the question it intends to generate.",
-  //                 parameters: {
-  //                     type: "OBJECT",
-  //                     properties: {
-  //                         // jobContext: Corresponds to the 'jobs' schema
-  //                         jobContext: {
-  //                             type: "OBJECT",
-  //                             description: "Relevant context about the job role.",
-  //                             properties: {
-  //                                 jobTitle: { type: "STRING", description: "The title of the job." },
-  //                                 jobDepartment: { type: "STRING", description: "The department the job belongs to." },
-  //                                 jobDescription: { type: "STRING", description: "A summary of the job, including influence, level, and day-to-day activities." },
-  //                                 jobLocation: { type: "STRING", description: "The location of the job." },
-  //                                 jobType: { type: "STRING", description: "The type of employment (e.g., Full-time, Contract)." },
-  //                                 riskTolerance: { type: "STRING", description: "The hiring manager's risk tolerance for this role (e.g., high, medium, low)." },
-  //                                 requiredEducation: {
-  //                                     type: "ARRAY",
-  //                                     items: { type: "STRING" },
-  //                                     description: "List of required educational qualifications."
-  //                                 },
-  //                                 requiredCertifications: {
-  //                                     type: "ARRAY",
-  //                                     items: { type: "STRING" },
-  //                                     description: "List of required certifications."
-  //                                 },
-  //                                 requiredSkills: {
-  //                                     type: "ARRAY",
-  //                                     items: {
-  //                                         type: "OBJECT",
-  //                                         properties: {
-  //                                             skill: { type: "STRING", description: "Name of the required skill." },
-  //                                             level: { type: "STRING", description: "Required proficiency level for the skill (e.g., proficient, expert)." }
-  //                                         }
-  //                                     },
-  //                                     description: "List of required skills and their expected proficiency levels."
-  //                                 },
-  //                                 preferredSkills: {
-  //                                     type: "ARRAY",
-  //                                     items: {
-  //                                         type: "OBJECT",
-  //                                         properties: {
-  //                                             skill: { type: "STRING", description: "Name of the preferred skill." },
-  //                                             level: { type: "STRING", description: "Preferred proficiency level for the skill." }
-  //                                         }
-  //                                     },
-  //                                     description: "List of preferred skills and their desired proficiency levels."
-  //                                 },
-  //                                 requiredQuestions: {
-  //                                     type: "ARRAY",
-  //                                     items: { type: "STRING" },
-  //                                     description: "Specific questions that must be asked or topics that must be covered during the interview."
-  //                                 },
-  //                                 techStack: {
-  //                                     type: "OBJECT",
-  //                                     description: "Details about the technology stack used for the role.",
-  //                                     properties: {
-  //                                         stack: {
-  //                                             type: "ARRAY",
-  //                                             items: {
-  //                                                 type: "OBJECT",
-  //                                                 properties: {
-  //                                                     skill: { type: "STRING", description: "Specific tool, technology, or platform." },
-  //                                                     level: { type: "STRING", description: "Required or expected level of expertise." },
-  //                                                     realWorldApplication: { type: "STRING", description: "Expected real-world application of the skill." },
-  //                                                     redFlags: { type: "ARRAY", items: { type: "STRING" }, description: "Potential red flags related to this skill." },
-  //                                                     weight: { type: "NUMBER", description: "Relative importance of this skill in the tech stack." }
-  //                                                 }
-  //                                             },
-  //                                             description: "List of specific technologies, tools, and platforms."
-  //                                         },
-  //                                         architecture: { type: "STRING", description: "Overall system architecture (e.g., microservices, monolithic)." },
-  //                                         scale: { type: "STRING", description: "The scale at which the system operates (e.g., 10M+ users)." },
-  //                                         challenges: { type: "ARRAY", items: { type: "STRING" }, description: "Key technical challenges." },
-  //                                         practices: { type: "ARRAY", items: { type: "STRING" }, description: "Development practices (e.g., TDD, CI/CD)." }
-  //                                     }
-  //                                 },
-  //                                 successCriteria: {
-  //                                     type: "OBJECT",
-  //                                     description: "Criteria defining success in the role.",
-  //                                     properties: {
-  //                                         immediate: {
-  //                                             type: "ARRAY",
-  //                                             items: {
-  //                                                 type: "OBJECT",
-  //                                                 properties: {
-  //                                                     metric: { type: "STRING", description: "Success metric." },
-  //                                                     description: { type: "STRING", description: "Description of the success metric." },
-  //                                                     weight: { type: "NUMBER", description: "Relative importance of the metric." }
-  //                                                 }
-  //                                             },
-  //                                             description: "Short-term success criteria (e.g., first 3-6 months)."
-  //                                         },
-  //                                         longTerm: {
-  //                                             type: "ARRAY",
-  //                                             items: {
-  //                                                 type: "OBJECT",
-  //                                                 properties: {
-  //                                                     metric: { type: "STRING", description: "Success metric." },
-  //                                                     description: { type: "STRING", description: "Description of the success metric." },
-  //                                                     weight: { type: "NUMBER", description: "Relative importance of the metric." }
-  //                                                 }
-  //                                             },
-  //                                             description: "Long-term success criteria (e.g., 6-12+ months)."
-  //                                         }
-  //                                     }
-  //                                 },
-  //                                 workEnvironment: {
-  //                                     type: "OBJECT",
-  //                                     description: "Details about the work environment and team dynamics.",
-  //                                     properties: {
-  //                                         techMaturity: { type: "STRING", description: "Technological maturity of the organization or team." },
-  //                                         structure: { type: "STRING", description: "Team or organizational structure (e.g., autonomous, hierarchical)." },
-  //                                         communication: { type: "STRING", description: "Primary communication style (e.g., async-first, meetings-heavy)." },
-  //                                         pace: { type: "STRING", description: "Pace of work (e.g., sprint-based, steady)." },
-  //                                         growthExpectations: { type: "STRING", description: "Expectations for employee growth and development (e.g., self-directed, structured)." }, // Corrected spelling
-  //                                         collaboration: { type: "STRING", description: "Nature of collaboration (e.g., cross-functional, siloed)." },
-  //                                         teamSize: { type: "STRING", description: "Typical size of the team." } // Using STRING for flexibility e.g., "5-7 people"
-  //                                     }
-  //                                 },
-  //                                 candidatePersona: { type: "STRING", description: "Description of the ideal candidate profile, including soft skills and work style." },
-  //                                 interviewStages: {
-  //                                     type: "ARRAY",
-  //                                     items: { type: "STRING" },
-  //                                     description: "Different stages of the interview process for this job."
-  //                                 }
-  //                             }
-  //                         },
-  //                         // orgContext: Corresponds to the 'org' schema
-  //                         orgContext: {
-  //                             type: "OBJECT",
-  //                             description: "Relevant context about the organization.",
-  //                             properties: {
-  //                                 companyName: { type: "STRING", description: "Name of the company." },
-  //                                 companyDescription: { type: "STRING", description: "A brief description of the company." },
-  //                                 companySize: { type: "STRING", description: "The size of the company (e.g., number of employees)." },
-  //                                 industry: { type: "STRING", description: "The industry the company operates in." },
-  //                                 location: { type: "STRING", description: "Primary location of the company." },
-  //                                 missionStatement: { type: "STRING", description: "The company's mission statement." },
-  //                                 companyValues: {
-  //                                     type: "ARRAY",
-  //                                     items: {
-  //                                         type: "OBJECT",
-  //                                         properties: {
-  //                                             name: { type: "STRING", description: "Name of the company value." },
-  //                                             description: { type: "STRING", description: "Description of the company value." },
-  //                                             extractedKeywords: { type: "ARRAY", items: { type: "STRING" }, description: "Keywords associated with the value (optional)." },
-  //                                             weight: { type: "NUMBER", description: "Relative importance of the value (optional)." }
-  //                                         }
-  //                                     },
-  //                                     description: "List of core company values."
-  //                                 }
-  //                             }
-  //                         },
-  //                         // candidateContext: Corresponds to the 'candidates' schema
-  //                         candidateContext: {
-  //                             type: "OBJECT",
-  //                             description: "Relevant context about the candidate being interviewed.",
-  //                             properties: {
-  //                                 name: { type: "STRING", description: "The candidate's full name." },
-  //                                 resumeBreakdown: {
-  //                                     type: "OBJECT",
-  //                                     description: "Structured information parsed from the candidate's resume.",
-  //                                     // NOT YET STRUCTURED
-  //                                     // properties: {
-  //                                     //     summary: { type: "STRING", description: "A brief summary from the resume." },
-  //                                     //     yearsOfExperience: { type: "NUMBER", description: "Total relevant years of experience." },
-  //                                     //     skills: { type: "ARRAY", items: { type: "STRING" }, description: "List of skills mentioned in the resume." },
-  //                                     //     recentRole: {
-  //                                     //         type: "OBJECT",
-  //                                     //         properties: {
-  //                                     //             title: { type: "STRING" },
-  //                                     //             company: { type: "STRING" },
-  //                                     //             duration: { type: "STRING" }
-  //                                     //         },
-  //                                     //         description: "Details of the most recent or relevant role."
-  //                                     //     }
-  //                                     // }
-  //                                 },
-  //                             }
-  //                         },
-  //                     },
-  //                     required: ["jobContext", "orgContext", "candidateContext"]
-  //                 },
-  //             }
-  //         ]
-  //     }
-  // ];
-
-  // const ai = new GoogleGenAI({ apiKey: GEMINI_KEY });
-
-  // const response = await ai.models.generateContent({
-  //   model: "gemini-2.0-flash",
-  //   contents: "",
-  //   tools: geminiToolConfig,
-  // });
-
-  // console.log(response.text);
 }
 
 exports.geminiChatbot = onCall(async (request) => {
@@ -693,4 +491,243 @@ exports.extractAndSaveData = onCall(async (request) => {
       `Data extraction failed: ${error.message}`
     );
   }
+});
+
+exports.generateReport = onCall(async (request) => {
+    const candidateId = request.data.candidateId;
+    const jobId = request.data.jobId;
+    const orgId = request.data.orgId;
+    const applicationId = request.data.applicationId;
+    const reportId = request.data.reportId;
+    const chatHistory = request.data.history;
+
+    if( !orgId || !candidateId || !jobId || !applicationId || !reportId){
+        throw new HttpsError("invalid-argument", "Missing Ids");
+    }
+
+    try{
+        const candidateSnapshot = await admin
+        .firestore()
+        .collection("candidates")
+        .where(admin.firestore.FieldPath.documentId(), "==", candidateId)
+        .select("name", "resumeBreakdown")
+        .get();
+        const candidateContext = candidateSnapshot.docs[0].data();
+
+        const jobSnapshot = await admin
+        .firestore()
+        .collection("jobs")
+        .where(admin.firestore.FieldPath.documentId(), "==", jobId)
+        .select(
+            "jobTitle",
+            "jobDepartment",
+            "jobDescription",
+            "jobLocation",
+            "jobType",
+            "riskTolerance",
+            "requiredEducation",
+            "requiredCertifications",
+            "requiredSkills",
+            "preferredSkills",
+            "requiredQuestions",
+            "techStack",
+            "successCriteria",
+            "candidatePersona",
+            "workEnvironment"
+        )
+        .get();
+        const jobContext = jobSnapshot.docs[0].data();
+
+        const orgSnapshot = await admin
+        .firestore()
+        .collection("orgs")
+        .where(admin.firestore.FieldPath.documentId(), "==", orgId)
+        .select(
+            "companyName",
+            "companyDescription",
+            "companySize",
+            "industry",
+            "location",
+            "missionStatement",
+            "companyValues"
+        )
+        .get();
+
+        const orgContext = orgSnapshot.docs[0].data();
+
+        const systemInstruction = `
+        You are an expert AI Interview Report Generator.
+        Your primary mission is to analyze interview data and generate highly structured, multi-part outputs.
+        You must adhere strictly to all specified formatting, section markers, and content requirements for each part of your response.
+        Your tone must always be objective, professional, and consistent across all generated sections.
+        Do not include any conversational preambles, postambles, or extraneous text outside of the defined output sections.
+        `;
+
+        const userPrompt = `
+        **INPUT DATA:**
+        ---
+
+        **1. Organization Context:**
+        ${JSON.stringify(orgContext, null, 2)}
+
+        **2. Job Context:**
+        ${JSON.stringify(jobContext, null, 2)}
+
+        **3. Candidate Context:**
+        ${JSON.stringify(candidateContext, null, 2)}
+
+        **4. Interview Chat History (Chronological Order):**
+        ${JSON.stringify(chatHistory, null, 2)}
+
+        ---
+        **OUTPUT STRUCTURE AND GENERATION GUIDELINES:**
+        ---
+
+        Generate **THREE DISTINCT SECTIONS** in your output, clearly separated by the specified markers.
+
+        **SECTION 1: COMPREHENSIVE INTERVIEW REPORT**
+        Generate a detailed interview report following this exact structure. Populate each section by carefully analyzing the 'INPUT DATA'. If information for a section is not directly present in the chat history, derive it logically from the context or state "Not explicitly discussed" where appropriate, but strive to synthesize.
+
+        **I. Candidate Information**
+        * **Candidate Name:** ${candidateContext.name}
+        * **Job Title Applied For:** ${jobContext.jobTitle}
+        * **Company Name:** ${orgContext.companyName}
+        * **Interviewer:** AI Interviewer
+
+        **II. Resume Summary & Initial Fit**
+        * **Key Strengths based on Resume:** Synthesize 2-3 key strengths from \`candidateContext.resumeBreakdown\` that directly align with \`jobContext\` requirements (e.g., required skills, tech stack).
+        * **Potential Gaps/Areas to Probe (Identified from Resume):** Highlight 1-2 significant discrepancies or areas where the resume was less clear or strong compared to \`jobContext\` requirements, which the interviewer likely probed.
+
+        **III. Interview Performance Breakdown**
+
+        **A. Required Questions/Topics Covered**
+        (Iterate through \`jobContext.requiredQuestions\`. For each, identify the question asked in \`chatHistory\` that covered it, and the candidate's response. Evaluate how well the answer addressed the specific requirement.)
+
+        * **Required Topic 1:** [Original topic from \`jobContext.requiredQuestions\`]
+            * **Question Asked:** "[The AI interviewer's exact question from \`chatHistory\` that addressed this topic.]"
+            * **Candidate's Answer:** "[Concise summary of the candidate's response. Extract the core information.]"
+            * **Evaluation:** [Assess how well the candidate demonstrated understanding or experience related to this topic. Did they provide sufficient detail or examples? Mention any strengths or weaknesses in their answer.]
+        * **Required Topic 2:** ... (Repeat for all required questions/topics)
+
+        **B. Core Skills and Technical Probing**
+        (Group related technical questions and answers. For each significant \`requiredSkill\`, \`preferredSkill\`, or \`techStack\` component, summarize discussions and evaluate proficiency.)
+
+        * **Skill/Tech Area: [e.g., "Node.js Proficiency" or "Microservices Architecture"]**
+            * **Questions Asked:** "[List 1-2 representative questions asked by the AI related to this skill/tech area from \`chatHistory\`.]"
+            * **Candidate's Responses (Synthesized):** "[Concise summary of all relevant candidate responses regarding this skill/tech area, focusing on real-world application and depth of understanding.]"
+            * **Evaluation:** [Assess the candidate's demonstrated proficiency and experience against the \`jobContext.requiredSkills[].level\` or \`techStack.stack[].level\`. Note their understanding of \`realWorldApplication\`, how they handled \`challenges\`, and if any \`redFlags\` were observed or addressed. Provide specific examples from their answers.]
+        * **Skill/Tech Area: ...** (Repeat for 3-5 most critical skills/tech areas discussed, prioritizing required over preferred)
+
+        **C. Strategic Probing & Gap Analysis**
+        (Identify instances where the AI interviewer specifically probed for gaps, alternative experiences, or weaknesses based on the candidate's resume or previous answers. This relates to the "Adaptive Questioning" instruction.)
+
+        * **Area Probed: [e.g., "Independent Project Ownership" or "Handling Ambiguity in Research"]**
+            * **Context for Probing:** "[Briefly explain why this area was probed (e.g., resume showed limited independent work, initial answer was vague on X topic).]"
+            * **Questions Asked:** "[List the adaptive questions asked by the AI from \`chatHistory\`.]"
+            * **Candidate's Responses (Synthesized):** "[Concise summary of the candidate's responses to these adaptive questions.]"
+            * **Evaluation:** [Assess if the candidate successfully addressed the underlying concern or demonstrated transferable skills. Did their follow-up answers provide the necessary clarity or examples?]
+        * **Area Probed: ...** (Repeat for 1-2 significant probing areas)
+
+        **IV. Cultural and Environmental Fit Assessment**
+
+        * **Company Values Alignment:** (Evaluate candidate's alignment with \`orgContext.companyValues\`. Provide specific examples from their answers where they demonstrated or discussed values.)
+            * **[Value Name 1]:** [Evaluation (e.g., "Strong alignment, demonstrated by X example" or "Moderate alignment, showed understanding of Y but no direct experience").]
+            * **[Value Name 2]:** ... (Cover 2-3 most relevant values based on interview discussion)
+        * **Work Environment Fit:** (Assess how well the candidate's preferences and experiences align with \`jobContext.workEnvironment\` attributes.)
+            * **Tech Maturity Alignment:** [Evaluation based on answers related to their comfort with different tech maturities.]
+            * **Pace Alignment:** [Evaluation based on responses related to their preferred work pace or experience in fast/slow environments.]
+            * **Collaboration Style:** [Evaluation based on their responses about teamwork and communication.]
+            * **(Add other relevant work environment aspects if discussed):** [Evaluation]
+        * **Ideal Candidate Persona Alignment:** (Evaluate how closely the candidate's overall profile and interview performance align with the \`jobContext.candidatePersona\`. Provide a brief justification.)
+            * **Alignment:** [e.g., "High alignment with the 'proactive problem-solver' aspect," or "Moderate alignment, some aspects align but autonomy needs further development."]
+
+        **V. Success Criteria Potential**
+        (Based on their answers, assess the candidate's potential to meet the immediate and long-term success criteria.)
+
+        * **Immediate Success (3-6 months):**
+            * **[Metric 1]:** [Assessment of candidate's potential to achieve this metric based on their demonstrated skills and experiences.]
+            * **[Metric 2]:** ...
+        * **Long-Term Success (6-12+ months):**
+            * **[Metric 1]:** [Assessment of candidate's potential to achieve this metric.]
+            * **[Metric 2]:** ...
+
+        **VI. Overall Assessment and Recommendation**
+
+        * **Strengths:** [List 3-5 overall key strengths demonstrated by the candidate across the interview.]
+        * **Areas for Development/Concerns:** [List 2-3 significant weaknesses, red flags, or areas requiring further development or follow-up.]
+        * **Risk Tolerance Assessment:** [Based on \`jobContext.riskTolerance\` (e.g., low, moderate, high), briefly assess how well the candidate's responses mitigated or highlighted risks in critical skills or required traits.]
+        * **General Impression:** [A concise, overall qualitative impression of the candidate's suitability for the role and company. (e.g., "A solid technical candidate with strong communication, but might need support in adapting to a highly ambiguous environment.")]
+        * **Recommendation:** [**Strong Fit / Good Fit with Reservations / Moderate Fit / Not a Fit** (Choose one and briefly justify)]
+
+        ---
+        **SECTION 2: CANDIDATE FEEDBACK FOR IMPROVEMENT**
+        Provide concise, actionable feedback to the candidate (addressed to them directly) on what they could improve or change for their next job application or interview. Focus on 2-3 key areas derived from the interview. Be encouraging and constructive.
+
+        ---
+        **SECTION 3: NUMERICAL MATCHING SCORE**
+        Provide a single numerical score, from 0.0 to 10.0 (with one decimal place), representing how closely the candidate matches the *requirements* of the **${jobContext.jobTitle}** position at **${orgContext.companyName}**.
+        This score should be a direct assessment of their alignment with \`jobContext.requiredSkills\`, \`jobContext.techStack\`, \`jobContext.successCriteria\`, and alignment with \`orgContext.companyValues\` and \`jobContext.candidatePersona\`.
+        Consider both their resume information (\`candidateContext.resumeBreakdown\`) and their performance during the interview (\`chatHistory\`).
+        Do not include any text before or after the number. Just the number itself.
+
+        ---
+        **Important Instructions for Generation (Applies to ALL Sections):**
+        * **Strictly follow the markdown formatting and headings provided for SECTION 1.**
+        * **For SECTION 2, provide 2-3 concise bullet points or a short paragraph, addressed directly to the candidate.**
+        * **For SECTION 3, output ONLY the numerical score (e.g., "7.5"), with one decimal place.**
+        * **Use the exact markers for each section: "SECTION 1:", "SECTION 2:", "SECTION 3:".**
+        * **Ensure all evaluations are directly supported by evidence from the \`chatHistory\` and input contexts.**
+        * **Maintain an objective, professional, and consistent tone across all sections.**
+        * **Keep summaries and evaluations concise and to the point (2-4 sentences max per bullet point).**
+        * **Cross-reference all sections of the original prompt (orgContext, jobContext, candidateContext) for comprehensive analysis.**
+        `;
+
+    await initializeGenAI();
+
+    const GEMINI_KEY = process.env.GEMINI_API_KEY;
+
+    const genAI = new GoogleGenAI({ apiKey: GEMINI_KEY });
+
+    const result = await genAI.models.generateContent({
+        model: "gemini-2.5-flash-preview-05-20",
+        contents: userPrompt,
+        config: {
+            temperature: 0.1,
+            systemInstruction: systemInstruction,
+        },
+    });
+
+    const generatedContent = result.text;
+
+    const applicationRef = admin.firestore().collection("applications").doc(applicationId);
+    await applicationRef.update({
+        status: "completed",
+        completedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    const sections = generatedContent.split(/SECTION [1-3]: /); 
+    const report = sections[1].trim();
+    const feedback = sections[2].trim();
+    const rawScore = sections[3].trim();
+    const numericalScore = parseFloat(rawScore);
+    console.log("score:", rawScore, numericalScore);
+
+    const reportRef = admin.firestore().collection("reports").doc(reportId);
+    await reportRef.update({
+        summary: report,
+        candidateFeedback: feedback,
+        score: numericalScore,
+        updatedAt: admin.firestore.FieldValue.serverTimestamp(),
+    });
+
+    return{
+        success: true,
+    };
+
+    }
+    catch (error) {
+        console.error("Error calling Gemini API:", error);
+        throw new HttpsError("internal", "Failed to get report from AI");
+    }
+
 });

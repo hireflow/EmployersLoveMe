@@ -26,7 +26,6 @@ exports.getPublicJobDetails = jobFunctions.getPublicJobDetails;
 exports.createApplication = applicationFunctions.createApplication;
 exports.findOneOrManyApplicationsById =
   applicationFunctions.findOneOrManyApplicationsById;
-exports.applyToJob = applicationFunctions.applyToJob;
 exports.parseApplicationForm = applicationFunctions.parseApplicationForm;
 
 // Export auth functions
@@ -55,6 +54,8 @@ exports.getCandidateProfile = candidateFunctions.getCandidateProfile;
 //gemini functions
 exports.geminiChatbot = chatbotFunctions.geminiChatbot;
 exports.extractAndSaveData = chatbotFunctions.extractAndSaveData;
+exports.generateReport = chatbotFunctions.generateReport;
+
 
 // Example HTTP function
 exports.helloWorld = onRequest(

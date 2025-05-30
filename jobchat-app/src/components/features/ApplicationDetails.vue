@@ -15,7 +15,7 @@ const candidateAuthStore = useCandidateAuthStore();
 const functions = getFunctions(app);
 
 const sendChat = httpsCallable(functions, "geminiChatbot");
-const applyToJobCallable = httpsCallable(functions, "applyToJob");
+const generateReport = httpsCallable(functions, "generateReport");
 const parseForm = httpsCallable(functions, "parseApplicationForm");
 
 const currentMessageForGemini = ref("");
@@ -106,18 +106,20 @@ async function submitApplication() {
   chatError.value = "";
 
   try {
-    const result = await applyToJobCallable({
+    const result = await generateReport({
       candidateId: candidateAuthStore.candidate.uid,
-      jobId: jobDetails.value.id,
+      jobId: route.params.jobId,
+      orgId: route.params.orgId,
       applicationId: applicationId.value,
-      messages: historyForGemini.value,
-      summaryToAddToReport: "Application submitted via chatbot interview",
-      scoreToAddToReport: null,
+      reportId: reportId.value,
+      history: historyForGemini.value,
     });
 
     if (result.data.success) {
       successMessage.value = "Application submitted successfully!";
-      // Optionally redirect to dashboard or show success state
+      router.push({
+        name: "CandidateDashboard",
+      });
     } else {
       chatError.value = result.data.message || "Failed to submit application";
     }
