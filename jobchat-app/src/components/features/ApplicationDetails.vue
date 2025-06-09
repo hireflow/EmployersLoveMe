@@ -15,7 +15,7 @@ const candidateAuthStore = useCandidateAuthStore();
 const functions = getFunctions(app);
 
 const sendChat = httpsCallable(functions, "geminiChatbot");
-const applyToJobCallable = httpsCallable(functions, "applyToJob");
+const generateReport = httpsCallable(functions, "generateReport");
 const parseForm = httpsCallable(functions, "parseApplicationForm");
 
 const currentMessageForGemini = ref("");
@@ -106,18 +106,20 @@ async function submitApplication() {
   chatError.value = "";
 
   try {
-    const result = await applyToJobCallable({
+    const result = await generateReport({
       candidateId: candidateAuthStore.candidate.uid,
-      jobId: jobDetails.value.id,
+      jobId: route.params.jobId,
+      orgId: route.params.orgId,
       applicationId: applicationId.value,
-      messages: historyForGemini.value,
-      summaryToAddToReport: "Application submitted via chatbot interview",
-      scoreToAddToReport: null,
+      reportId: reportId.value,
+      history: historyForGemini.value,
     });
 
     if (result.data.success) {
       successMessage.value = "Application submitted successfully!";
-      // Optionally redirect to dashboard or show success state
+      router.push({
+        name: "CandidateDashboard",
+      });
     } else {
       chatError.value = result.data.message || "Failed to submit application";
     }
@@ -131,13 +133,17 @@ async function submitApplication() {
 
 const handleFormSubmitAndInitializeChatbot = async () => {
   chatError.value = "";
-
-  if (!selectedResumeText.value || selectedResumeText.value.trim() === "") {
+  console.log("HELLO");
+  if (
+    (!selectedResumeText.value || selectedResumeText.value.trim() === "") &&
+    !candidateAuthStore.candidateProfile.resumeBreakdown
+  ) {
     chatError.value = "Please paste the resume text.";
     return;
   }
 
   try {
+    console.log("IN TRY");
     const payload = {
       resumeText: selectedResumeText.value,
       employmentStatus: employmentForm.value.employmentStatus,
@@ -151,6 +157,11 @@ const handleFormSubmitAndInitializeChatbot = async () => {
     const result = await parseForm(payload);
 
     if (result.data && result.data.success) {
+      currentMessageForGemini.value = "Hello i am ready to begin the interview";
+
+      await sendMessageToGemini();
+
+      currentMessageForGemini.value = "";
       showChatbot.value = true;
     } else {
       chatError.value =
@@ -452,7 +463,13 @@ onMounted(async () => {
         </p>
       </section>
 
-      <div class="form-group">
+      <div
+        class="form-group"
+        v-if="
+          !candidateAuthStore.candidateProfile.resumeBreakdown ||
+          !candidateAuthStore.candidateProfile.resumeBreakdown.trim()
+        "
+      >
         <label for="resumeText">Paste Resume Text Here</label>
         <textarea
           id="resumeText"
@@ -543,17 +560,22 @@ onMounted(async () => {
 
       <div v-else class="chatbot-container">
         <div class="chat-messages" ref="chatMessages">
-          <div>
-            This is where the chatbot will say, we see your resume, see the job
-            info and the org info... blah blah
-          </div>
           <div
             v-for="(item, index) in historyForGemini"
             :key="index"
             class="message-group"
           >
-            <div v-if="item.role === 'user'" class="message user-message">
-              <div class="message-content">{{ item.parts[0].text }}</div>
+            <div
+              v-if="
+                !(
+                  item.parts[0].text ===
+                  'Hello i am ready to begin the interview'
+                )
+              "
+            >
+              <div v-if="item.role === 'user'" class="message user-message">
+                <div class="message-content">{{ item.parts[0].text }}</div>
+              </div>
             </div>
             <div v-if="item.role === 'model'" class="message bot-message">
               <div class="message-content">{{ item.parts[0].text }}</div>

@@ -231,101 +231,101 @@ exports.findOneOrManyApplicationsById = onCall(async (request) => {
 });
 
 
-exports.applyToJob = onCall(async (request) => {
-  try {
-    const { candidateId, jobId, applicationId, ...applicationResults } =
-      request.data;
+// exports.applyToJob = onCall(async (request) => {
+//   try {
+//     const { candidateId, jobId, applicationId, ...applicationResults } =
+//       request.data;
 
-    if (!candidateId || !jobId || !applicationId) {
-      throw new HttpsError("invalid-argument", "Missing required fields");
-    }
+//     if (!candidateId || !jobId || !applicationId) {
+//       throw new HttpsError("invalid-argument", "Missing required fields");
+//     }
 
-    const candidateRef = db.collection("candidates").doc(candidateId);
-    const jobRef = db.collection("jobs").doc(jobId);
+//     const candidateRef = db.collection("candidates").doc(candidateId);
+//     const jobRef = db.collection("jobs").doc(jobId);
 
-    const [candidateDoc, jobDoc] = await Promise.all([
-      candidateRef.get(),
-      jobRef.get(),
-    ]);
+//     const [candidateDoc, jobDoc] = await Promise.all([
+//       candidateRef.get(),
+//       jobRef.get(),
+//     ]);
 
-    if (!candidateDoc.exists) {
-      throw new HttpsError(
-        "not-found",
-        `Candidate with ID ${candidateId} not found.`
-      );
-    }
+//     if (!candidateDoc.exists) {
+//       throw new HttpsError(
+//         "not-found",
+//         `Candidate with ID ${candidateId} not found.`
+//       );
+//     }
 
-    if (!jobDoc.exists) {
-      throw new HttpsError("not-found", `Job with ID ${jobId} not found.`);
-    }
+//     if (!jobDoc.exists) {
+//       throw new HttpsError("not-found", `Job with ID ${jobId} not found.`);
+//     }
 
-    const applicationRef = db.collection("applications").doc(applicationId);
-    const applicationDoc = await applicationRef.get();
+//     const applicationRef = db.collection("applications").doc(applicationId);
+//     const applicationDoc = await applicationRef.get();
 
-    if (!applicationDoc.exists) {
-      throw new HttpsError(
-        "not-found",
-        `Application with ID ${applicationId} not found.`
-      );
-    }
+//     if (!applicationDoc.exists) {
+//       throw new HttpsError(
+//         "not-found",
+//         `Application with ID ${applicationId} not found.`
+//       );
+//     }
 
-    const applicationData = applicationDoc.data();
+//     const applicationData = applicationDoc.data();
 
-    if (applicationData.status === "Not Completed") {
-      //
-      const { messages, summaryToAddToReport, scoreToAddToReport } =
-        applicationResults;
+//     if (applicationData.status === "Not Completed") {
+//       //
+//       const { messages, summaryToAddToReport, scoreToAddToReport } =
+//         applicationResults;
 
-      // generate a new report
-      const reportId = db.collection("reports").doc().id;
+//       // generate a new report
+//       const reportId = db.collection("reports").doc().id;
 
-      const reportData = {
-        candidateId,
-        applicationId,
-        jobId,
-        questionResponses: messages,
-        summary: summaryToAddToReport,
-        score: scoreToAddToReport,
-        createdAt: admin.firestore.Timestamp.now(),
-        updatedAt: admin.firestore.Timestamp.now(),
-      };
+//       const reportData = {
+//         candidateId,
+//         applicationId,
+//         jobId,
+//         questionResponses: messages,
+//         summary: summaryToAddToReport,
+//         score: scoreToAddToReport,
+//         createdAt: admin.firestore.Timestamp.now(),
+//         updatedAt: admin.firestore.Timestamp.now(),
+//       };
 
-      const reportRef = db.collection("reports").doc(reportId);
-      await reportRef.set(reportData);
+//       const reportRef = db.collection("reports").doc(reportId);
+//       await reportRef.set(reportData);
 
-      // now update the application to include messages and the report id
+//       // now update the application to include messages and the report id
 
-      const appData = {
-        candidateId,
-        jobId,
-        orgId: applicationData.orgId, //check if i need to prefill this???
-        messages,
-        reportId,
-        status: "Completed",
-        completedAt: admin.firestore.Timestamp.now(),
-        applicationDate: admin.firestore.Timestamp.now(),
-      };
+//       const appData = {
+//         candidateId,
+//         jobId,
+//         orgId: applicationData.orgId, //check if i need to prefill this???
+//         messages,
+//         reportId,
+//         status: "Completed",
+//         completedAt: admin.firestore.Timestamp.now(),
+//         applicationDate: admin.firestore.Timestamp.now(),
+//       };
 
-      await applicationRef.update(appData);
+//       await applicationRef.update(appData);
 
-      return {
-        success: true,
-        applicationId,
-        reportId,
-        message: "Application completed successfully",
-      };
-    }
-  } catch (error) {
-    console.error("Error applying to job:", error);
-    if (error instanceof HttpsError) {
-      throw error; // Re-throw HttpsError
-    }
-    throw new HttpsError(
-      "internal",
-      "An unexpected error occurred while applying to the job."
-    );
-  }
-});
+//       return {
+//         success: true,
+//         applicationId,
+//         reportId,
+//         message: "Application completed successfully",
+//       };
+//     }
+//   } catch (error) {
+//     console.error("Error applying to job:", error);
+//     if (error instanceof HttpsError) {
+//       throw error; // Re-throw HttpsError
+//     }
+//     throw new HttpsError(
+//       "internal",
+//       "An unexpected error occurred while applying to the job."
+//     );
+//   }
+// });
 
 exports.parseApplicationForm = onCall(async (request) => {
     const {
@@ -341,11 +341,9 @@ exports.parseApplicationForm = onCall(async (request) => {
 
   // 2. Validate Resume Text
   if (!resumeText || typeof resumeText !== 'string' || resumeText.trim() === '') {
-    console.error(`[${Date.now()}] Invalid or missing resumeText in payload.`);
-    throw new HttpsError(
-      'invalid-argument',
-      'The `resumeText` field is required and must be a non-empty string.'
-    );
+    return {
+      success: true,
+    };
   }
 
   const candidateData = {
