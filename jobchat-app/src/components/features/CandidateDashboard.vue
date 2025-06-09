@@ -1,402 +1,356 @@
-<template>
-  <div>
-    <div v-if="showSidebar" class="sidebar-overlay" @click="toggleSidebar">
-      <div class="sidebar" @click.stop>
-        <ul>
-          <li><a href="#">Dashboard</a></li>
-          <li><a href="#">Profile</a></li>
-          <li><a href="#">Settings</a></li>
-        </ul>
-
-        <div class="sidebar-footer">
-          <button @click="logoutAction" class="logout-button">
-            <svg xmlns="http://www.w3.org/2000/svg" class="logout-icon" viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
-              <polyline points="16 17 21 12 16 7"></polyline>
-              <line x1="21" y1="12" x2="9" y2="12"></line>
-            </svg>
-            Logout
-          </button>
-        </div>
-      </div>
-    </div>
-
-    <div class="top-bar">
-      <div class="nav-icon" @click="toggleSidebar">☰</div>
-      <div class="logo-container">
-        <img src="../imgs/swiftly_logo.png" alt="Logo" class="logo" />
-        <span class="logo-text">Swiftly</span>
-      </div>
-    </div>
-
-    <div class="dashboard-container">
-      <div class="dashboard-header">
-        <h2>Completed Applications</h2>
-        <div class="controls">
-          <input v-model="searchQuery" type="text" placeholder="Search" class="search-input" />
-          <select v-model="sortOrder" class="sort-dropdown">
-            <option value="newest">Newest</option>
-            <option value="oldest">Oldest</option>
-          </select>
-        </div>
-      </div>
-
-        <table class="application-table">
-          <thead>
-            <tr>
-              <th>Job Title</th>
-              <th>Company</th>
-              <th>Job Posted</th>
-              <th>Country</th>
-              <th>Status</th>
-              <th>Report</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="app in paginatedApplications" :key="app.id">
-              <td>{{ app.jobTitle }}</td>
-              <td>{{ app.companyName }}</td>
-              <td>{{ app.jobPosted }}</td>
-              <td>{{ app.country }}</td>
-              <td>
-                <span :class="['status-tag', app.status === 'Active' ? 'active' : 'inactive']">
-                  {{ app.status }}
-                </span>
-              </td>
-              <td>
-                <a href="#" class="report-link">View Report <i class="icon-report"></i></a>
-              </td>
-            </tr>
-          </tbody>
-        </table>
-
-      <div v-if="totalApplications > itemsPerPage" class="pagination">
-        <button @click="currentPage--" :disabled="currentPage === 1">‹</button>
-        <span>Page {{ currentPage }} of {{ totalPages }}</span>
-        <button @click="currentPage++" :disabled="currentPage === totalPages">›</button>
-      </div>
-    </div>
-  </div>
-</template>
-
 <script setup>
-import { ref, computed } from 'vue';
-import { useAuthStore } from "@/stores/auth";
+import { onMounted, computed, watch } from "vue";
+import { useCandidateAuthStore } from "@/stores/candidate"; // Or your path to the store
 import { useRouter } from "vue-router";
+import LoadingSpinner from "@/components/ui/LoadingSpinner.vue";
 
-const totalApplications = computed(() => applications.value.length);
-const showSidebar = ref(false)
-const authStore = useAuthStore();
+const candidateAuthStore = useCandidateAuthStore();
 const router = useRouter();
 
+// Computed properties to reactively get data from the store
+const applications = computed(() => candidateAuthStore.applicationsList);
+const isLoading = computed(() => candidateAuthStore.isLoadingApplications);
+const error = computed(() => candidateAuthStore.applicationsError);
+const candidateIsLoggedIn = computed(() => !!candidateAuthStore.isAuthenticated);
 
 const logoutAction = async () => {
   try {
-    await authStore.logout();
+    await candidateAuthStore.logout();
     router.push("/candidate-login");
   } catch (error) {
     console.error("Logout error:", error);
   }
 };
 
-const applications = ref([
-  { id: 1, jobTitle: 'rpi pub safe officer', companyName: 'Microsoft', jobPosted: '2024-01-01', country: 'india', status: 'Active' },
-  { id: 2, jobTitle: 'quant intern', companyName: 'Yahoo', jobPosted: '2024-01-03', country: 'jewish country', status: 'Active' },
-  { id: 3, jobTitle: 'Hirebird SWE Intern', companyName: 'Adobe', jobPosted: '2024-01-04', country: 'mountains', status: 'Active' },
-  { id: 4, jobTitle: 'Sipsmrt Intern', companyName: 'Tesla', jobPosted: '2024-01-06', country: 'mexico', status: 'Active' },
-  { id: 5, jobTitle: 'Financial analyst', companyName: 'Google', jobPosted: '2024-01-07', country: 'nepali town', status: 'Active' },
-  { id: 6, jobTitle: 'Comedian', companyName: 'Microsoft', jobPosted: '2024-01-08', country: 'portugal', status: 'Active' },
-  { id: 7, jobTitle: 'Actor', companyName: 'Yahoo', jobPosted: '2024-01-09', country: 'Madagascar', status: 'Active' },
-  { id: 8, jobTitle: 'NBA player', companyName: 'Facebook', jobPosted: '2024-01-10', country: 'USA', status: 'Inactive' },
-  { id: 9, jobTitle: 'Actor', companyName: 'Yahoo', jobPosted: '2024-01-09', country: 'Madagascar', status: 'Active' },
-  { id: 10, jobTitle: 'NBA player', companyName: 'Facebook', jobPosted: '2024-01-10', country: 'USA', status: 'Inactive' },
-  { id: 11, jobTitle: 'rpi pub safe officer', companyName: 'Microsoft', jobPosted: '2024-01-01', country: 'india', status: 'Active' },
-  { id: 12, jobTitle: 'quant intern', companyName: 'Yahoo', jobPosted: '2024-01-03', country: 'jewish country', status: 'Active' },
-  { id: 13, jobTitle: 'Hirebird SWE Intern', companyName: 'Adobe', jobPosted: '2024-01-04', country: 'mountains', status: 'Active' },
-  { id: 14, jobTitle: 'Sipsmrt Intern', companyName: 'Tesla', jobPosted: '2024-01-06', country: 'mexico', status: 'Active' },
-  { id: 15, jobTitle: 'Financial analyst', companyName: 'Google', jobPosted: '2024-01-07', country: 'nepali town', status: 'Active' },
-  { id: 16, jobTitle: 'Comedian', companyName: 'Microsoft', jobPosted: '2024-01-08', country: 'portugal', status: 'Active' },
-  { id: 17, jobTitle: 'Actor', companyName: 'Yahoo', jobPosted: '2024-01-09', country: 'Madagascar', status: 'Active' },
-  { id: 18, jobTitle: 'NBA player', companyName: 'Facebook', jobPosted: '2024-01-10', country: 'USA', status: 'Inactive' },
-  { id: 19, jobTitle: 'Actor', companyName: 'Yahoo', jobPosted: '2024-01-09', country: 'Madagascar', status: 'Active' },
-  { id: 20, jobTitle: 'NBA player', companyName: 'Facebook', jobPosted: '2024-01-10', country: 'USA', status: 'Inactive' },
-  { id: 21, jobTitle: 'Actor', companyName: 'Yahoo', jobPosted: '2024-01-09', country: 'Madagascar', status: 'Active' },
-  { id: 22, jobTitle: 'NBA player', companyName: 'Facebook', jobPosted: '2024-01-10', country: 'USA', status: 'Inactive' },
-]);
-
-const searchQuery = ref('');
-const sortOrder = ref('newest');
-const currentPage = ref(1);
-const itemsPerPage = 20;
-
-function toggleSidebar() {
-  showSidebar.value = !showSidebar.value
-}
-
-const filteredApplications = computed(() => {
-  return applications.value.filter(app =>
-    app.jobTitle.toLowerCase().includes(searchQuery.value.toLowerCase()) ||
-    app.companyName.toLowerCase().includes(searchQuery.value.toLowerCase())
-  );
+onMounted(async () => {
+  if (!candidateAuthStore.loading) {
+    if (candidateIsLoggedIn.value) {
+      await candidateAuthStore.fetchMyApplications();
+    }
+  } else {
+    const unwatch = watch(
+      () => candidateAuthStore.loading,
+      (newInitLoading) => {
+        if (!newInitLoading && candidateIsLoggedIn.value) {
+          candidateAuthStore.fetchMyApplications();
+          unwatch();
+        } else if (!newInitLoading && !candidateIsLoggedIn.value) {
+          unwatch();
+        }
+      }
+    );
+  }
 });
 
-const sortedApplications = computed(() => {
-  const sorted = [...filteredApplications.value];
-  return sorted.sort((a, b) => {
-    const aDate = new Date(a.jobPosted);
-    const bDate = new Date(b.jobPosted);
-    return sortOrder.value === 'newest' ? bDate - aDate : aDate - bDate;
+const formatTimestamp = (timestampInput) => {
+  if (!timestampInput) return "N/A";
+  let date;
+  if (
+    timestampInput &&
+    typeof timestampInput === "object" &&
+    timestampInput._seconds !== undefined
+  ) {
+    date = new Date(
+      timestampInput._seconds * 1000 +
+        (timestampInput._nanoseconds || 0) / 1000000
+    );
+  } else if (timestampInput instanceof Date) {
+    date = timestampInput;
+  } else if (
+    typeof timestampInput === "string" ||
+    typeof timestampInput === "number"
+  ) {
+    try {
+      date = new Date(timestampInput);
+      if (isNaN(date.getTime())) return String(timestampInput);
+    } catch (e) {
+      return String(timestampInput);
+    }
+  } else {
+    return "Invalid Date";
+  }
+  return date.toLocaleDateString(undefined, {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
   });
-});
-
-const totalPages = computed(() => Math.ceil(sortedApplications.value.length / itemsPerPage));
-
-const paginatedApplications = computed(() => {
-  const start = (currentPage.value - 1) * itemsPerPage;
-  return sortedApplications.value.slice(start, start + itemsPerPage);
-});
+};
 </script>
 
+<template>
+  <div class="candidate-dashboard-container">
+    <header class="page-header">
+      <h1>My Applications</h1>
+      <button class="logout-button" @click="logoutAction">Logout</button>
+    </header>
+
+    <div v-if="isLoading && applications.length === 0" class="loading-state">
+      <LoadingSpinner message="Loading your applications..." />
+    </div>
+
+    <div v-else-if="error" class="error-message">
+      <p>We encountered an error loading your applications: {{ error }}</p>
+      <button
+        @click="candidateAuthStore.fetchMyApplications()"
+        class="try-again-button"
+      >
+        Try Again
+      </button>
+    </div>
+
+    <div
+      v-else-if="!candidateIsLoggedIn && !candidateAuthStore.loading"
+      class="info-message"
+    >
+      <p>Please log in to see your applications.</p>
+      <router-link :to="{ name: 'CandidateLogin' }" class="action-button"
+        >Login</router-link
+      >
+    </div>
+
+    <div v-else-if="applications.length > 0" class="applications-list">
+      <div v-for="app in applications" :key="app.id" class="application-card">
+        <div class="card-header">
+          <h3>{{ app.jobTitle }}</h3>
+          <p class="company-name">{{ app.companyName }}</p>
+        </div>
+        <div class="card-body">
+          <p>
+            <strong>Applied on:</strong>
+            {{ formatTimestamp(app.applicationDate) }}
+          </p>
+          <p>
+            <strong>Status:</strong>
+            <span
+              :class="`status-${app.status
+                ?.toLowerCase()
+                .replace(/\s+/g, '-')}`"
+              >{{ app.status || "N/A" }}</span
+            >
+          </p>
+        </div>
+        <div class="card-footer">
+          <router-link
+            :to="{
+              name: 'ApplicationDetails',
+              params: { orgId: app.orgID, jobId: app.jobID },
+            }"
+            class="view-details-button"
+            v-if="app.orgID && app.jobID"
+          >
+            View Details & Chat
+          </router-link>
+          <span v-else class="details-unavailable-text">
+            Details temporarily unavailable
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <div v-else-if="!isLoading" class="no-applications">
+      <p>You haven't submitted any applications yet.</p>
+    </div>
+  </div>
+</template>
+
 <style scoped>
-* {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+.candidate-dashboard-container {
+  max-width: 900px;
+  margin: 2rem auto;
+  padding: 1rem 2rem;
+  font-family: "Poppins", sans-serif;
 }
 
-body {
-  margin: 0;
-  font-family: sans-serif;
+.page-header {
+  position: relative;
+  margin-bottom: 2rem;
+  padding-bottom: 1rem;
+  border-bottom: 1px solid #e0e0e0;
 }
 
-.top-bar {
-  width: 100%;
-  background-color: #6FCAFF;
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 60px;
-  z-index: 10;
-  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
-}
-
-.nav-icon {
-  position: absolute;
-  left: 1rem;
-  font-size: 1.5rem;
-  cursor: pointer;
-  color: white;
-}
-
-.logo-container {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-}
-
-.logo-text {
-  font-size: 1.25rem;
+.page-header h1 {
+  color: #2c3e50;
+  font-size: 2rem;
   font-weight: 600;
-  color: white;
+  margin: 0;
 }
 
-.logo {
-  height: 32px;
-  object-fit: contain;
-}
-
-.sidebar-overlay {
-  position: fixed;
-  top: 60px;
-  left: 0;
-  width: 100%;
-  height: calc(100% - 60px);
-  z-index: 99;
-}
-
-.sidebar {
-  position: fixed;
-  top: 60px; 
-  left: 0;
-  height: calc(100% - 60px);
-  width: 250px;
-  background-color: #6FCAFF;
-  color: white;
-  padding: 20px;
-  transition: transform 0.3s ease;
-  z-index: 100;
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-}
-
-.sidebar ul {
-  list-style: none;
-  padding: 0;
-}
-
-.sidebar ul li {
-  margin-bottom: 16px;
-}
-
-.sidebar ul li a {
-  color: white;
-  text-decoration: none;
-  font-weight: 500;
-}
-
-.sidebar ul li a:hover {
-  text-decoration: underline;
-}
-
-.sidebar-footer {
-  width: 100%;
-}
-
-.logout-wrapper {
-  position: absolute;
-  bottom: 20px;
-  left: 20px;
-  right: 20px;
-}
-
+/* New logout button styling */
 .logout-button {
-  width: 100%;
-  padding: 12px 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  background-color: #A4DDFF;
+  position: absolute;
+  top: 0.25rem;
+  right: 0;
+  background-color: #d32f2f;
   color: white;
   border: none;
-  border-radius: 10px;
-  font-weight: 500;
-  font-size: 16px;
+  padding: 0.5rem 1rem;
+  font-weight: 600;
+  border-radius: 4px;
   cursor: pointer;
   transition: background-color 0.2s ease;
 }
 
 .logout-button:hover {
-  background-color: #90D4FF;
+  background-color: #b71c1c;
 }
 
-.logout-icon {
-  width: 20px;
-  height: 20px;
-  stroke: white;
-}
-
-.btn-logout {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 100%;
-  padding: 10px;
-  background-color: rgba(255, 255, 255, 0.2);
-  color: #fff;
-  font-size: 0.875rem;
-  border-radius: 4px;
-  font-weight: 500;
-  transition: all 0.2s ease;
-}
-
-.logout-button:hover {
-  background-color: #90D4FF;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15); 
-}
-
-.logout-icon {
-  width: 20px;
-  height: 20px;
-  margin-right: 8px;
-}
-
-.dashboard-container {
+/* rest of your styles unchanged ... */
+.loading-state,
+.error-message,
+.no-applications,
+.info-message {
+  text-align: center;
   padding: 2rem;
-  padding-top: 80px;
-  font-family: sans-serif;
-  background-color: #f9f9fc;
-}
-
-.dashboard-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.controls {
-  display: flex;
-  gap: 1rem;
-}
-
-.search-input {
-  padding: 0.5rem 1rem;
+  margin-top: 2rem;
   border-radius: 8px;
-  border: 1px solid #ccc;
 }
 
-.sort-dropdown {
-  padding: 0.5rem;
-  border-radius: 8px;
-  border: 1px solid #ccc;
+.error-message {
+  background-color: #ffe3e3;
+  color: #d32f2f;
+  border: 1px solid #ffcdd2;
 }
-
-.application-table {
-  width: 100%;
-  border-collapse: collapse;
-  background: white;
-  border-radius: 10px;
-  overflow: hidden;
-  box-shadow: 0 0 10px rgba(0,0,0,0.05);
-}
-
-.application-table th,
-.application-table td {
-  padding: 1rem;
-  border-bottom: 1px solid #eee;
-}
-
-.status-tag {
-  padding: 0.4rem 1rem;
-  border-radius: 20px;
-  font-weight: 600;
-}
-
-.status-tag.active {
-  background-color: #e6f8f1;
-  color: #2e8c5e;
-}
-
-.status-tag.inactive {
-  background-color: #fff4d6;
-  color: #d09100;
-}
-
-.report-link {
-  color: #007bff;
+.try-again-button,
+.action-button {
+  margin-top: 1rem;
+  padding: 0.6rem 1.2rem;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: 500;
   text-decoration: none;
+  display: inline-block;
+  font-size: 0.9rem;
+}
+.try-again-button {
+  background-color: #d32f2f;
+}
+.try-again-button:hover {
+  background-color: #b71c1c;
+}
+.action-button {
+  background-color: #1976d2;
+}
+.action-button:hover {
+  background-color: #1565c0;
+}
+
+.no-applications,
+.info-message {
+  background-color: #f0f4f8;
+  color: #4a6a87;
+  padding: 2rem;
+  border: 1px dashed #c8d4e0;
+}
+
+.applications-list {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.application-card {
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+  transition: transform 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+  display: flex;
+  flex-direction: column;
+}
+
+.application-card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.card-header {
+  padding: 1.25rem 1.5rem; /* Slightly adjusted padding */
+  border-bottom: 1px solid #f0f0f0;
+}
+
+.card-header h3 {
+  margin: 0 0 0.25rem 0;
+  color: #1976d2;
+  font-size: 1.2rem; /* Slightly adjusted size */
+}
+
+.company-name {
+  margin: 0;
+  color: #555;
+  font-size: 0.9rem; /* Slightly adjusted size */
+}
+
+.card-body {
+  padding: 1.25rem 1.5rem; /* Slightly adjusted padding */
+  flex-grow: 1;
+}
+
+.card-body p {
+  margin: 0.5rem 0;
+  color: #333;
+  font-size: 0.9rem;
+}
+.card-body p strong {
+  color: #111;
+  font-weight: 600; /* Bolder strong tags */
+}
+
+/* Example status styling - extend as needed */
+.status-applied {
+  color: #0277bd;
+  font-weight: 500;
+}
+.status-chatbot-welcome-sent {
+  color: #0288d1;
+  font-weight: 500;
+}
+.status-interview-in-progress {
+  color: #ff8f00;
+  font-weight: 500;
+}
+.status-interview-completed {
+  color: #388e3c;
+  font-weight: 500;
+}
+.status-shortlisted {
+  color: #6a1b9a;
+  font-weight: 500;
+}
+.status-rejected-manual {
+  color: #c62828;
+  font-weight: 500;
+}
+/* Add more specific status styles here, ensure class names are sanitized (e.g. replace spaces with hyphens) */
+[class^="status-"] {
+  /* Default for any status not specifically styled */
+  color: #424242;
   font-weight: 500;
 }
 
-.pagination {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  margin-top: 1rem;
-  gap: 1rem;
+.card-footer {
+  padding: 1rem 1.5rem;
+  background-color: #f9fafb; /* Slightly lighter footer */
+  border-top: 1px solid #f0f0f0;
+  text-align: right;
 }
 
-.pagination button {
-  background: #f0f0f5;
-  border: none;
-  padding: 0.5rem 1rem;
-  border-radius: 8px;
-  cursor: pointer;
+.view-details-button {
+  background-color: #1976d2;
+  color: white;
+  padding: 0.6rem 1.2rem;
+  border-radius: 4px;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background-color 0.2s ease;
+}
+
+.view-details-button:hover {
+  background-color: #1565c0;
+}
+.details-unavailable-text {
+  font-size: 0.85rem;
+  color: #757575;
+  font-style: italic;
 }
 </style>
