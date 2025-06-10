@@ -28,17 +28,6 @@ const successMessage = ref("");
 const showDeleteConfirmation = ref(false);
 const currentOrgId = ref(null);
 
-// Add new refs for data extraction
-const showExtractionModal = ref(false);
-const selectedJobForExtraction = ref(null);
-const extractionText = ref("");
-const isExtracting = ref(false);
-const extractionError = ref("");
-const extractionResult = ref(null);
-
-// Add the extractAndSaveData callable
-const extractAndSaveData = httpsCallable(functions, "extractAndSaveData");
-
 // ... (formatTimestamp, fetchJobs, deleteConfirmation logic remains largely the same) ...
 const formatTimestamp = (timestampInput) => {
   if (!timestampInput) return "N/A";
@@ -447,61 +436,6 @@ const JobEditModal = defineAsyncComponent(() =>
 const ChatbotConfigModal = defineAsyncComponent(() =>
   import("@/components/features/ChatbotConfigModal.vue")
 );
-
-// Add new methods for data extraction
-const openExtractionModal = (job) => {
-  selectedJobForExtraction.value = job;
-  showExtractionModal.value = true;
-  extractionText.value = "";
-  extractionError.value = "";
-  extractionResult.value = null;
-};
-
-const closeExtractionModal = () => {
-  selectedJobForExtraction.value = null;
-  showExtractionModal.value = false;
-  extractionText.value = "";
-  extractionError.value = "";
-  extractionResult.value = null;
-};
-
-const handleExtraction = async () => {
-  if (!extractionText.value.trim()) {
-    extractionError.value = "Please enter some text to extract data from";
-    return;
-  }
-
-  if (!currentOrgId.value || !selectedJobForExtraction.value?.id) {
-    extractionError.value = "Missing organization or job information";
-    return;
-  }
-
-  isExtracting.value = true;
-  extractionError.value = "";
-
-  try {
-    console.log("Extracting data with params:", {
-      orgId: currentOrgId.value,
-      jobId: selectedJobForExtraction.value.id,
-      textInput: extractionText.value,
-    });
-
-    const result = await extractAndSaveData({
-      orgId: currentOrgId.value,
-      jobId: selectedJobForExtraction.value.id,
-      textInput: extractionText.value,
-    });
-
-    extractionResult.value = result.data;
-    extractionText.value = "";
-    successMessage.value = "Data extracted and saved successfully!";
-  } catch (error) {
-    console.error("Extraction error:", error);
-    extractionError.value = error.message || "Failed to extract data";
-  } finally {
-    isExtracting.value = false;
-  }
-};
 </script>
 
 <template>
@@ -853,29 +787,6 @@ const handleExtraction = async () => {
                   </svg>
                   Delete
                 </button>
-                <button
-                  @click.stop="openExtractionModal(job)"
-                  class="btn btn-secondary btn-sm"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    class="btn-icon"
-                  >
-                    <path
-                      fill-rule="evenodd"
-                      d="M4.5 2a1.5 1.5 0 00-1.5 1.5v9a1.5 1.5 0 001.5 1.5h11a1.5 1.5 0 001.5-1.5V3.5A1.5 1.5 0 0015.5 2h-11zm0 1h11a.5.5 0 01.5.5v9a.5.5 0 01-.5.5h-11a.5.5 0 01-.5-.5v-9a.5.5 0 01.5-.5z"
-                      clip-rule="evenodd"
-                    />
-                    <path
-                      fill-rule="evenodd"
-                      d="M7.5 5a.5.5 0 01.5.5v4a.5.5 0 01-1 0v-4a.5.5 0 01.5-.5zm3 0a.5.5 0 01.5.5v4a.5.5 0 01-1 0v-4a.5.5 0 01.5-.5z"
-                      clip-rule="evenodd"
-                    />
-                  </svg>
-                  Extract Data
-                </button>
               </div>
             </div>
           </div>
@@ -956,60 +867,6 @@ const handleExtraction = async () => {
                 />
               </svg>
               Yes, Delete
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <div
-        v-if="showExtractionModal"
-        class="modal-overlay"
-        @click.self="closeExtractionModal"
-      >
-        <div class="extraction-modal-container">
-          <div class="extraction-modal-header">
-            <h3>Extract Job Data</h3>
-            <button
-              @click="closeExtractionModal"
-              class="btn-close-modal"
-              aria-label="Close"
-            >
-              &times;
-            </button>
-          </div>
-          <div class="extraction-modal-body">
-            <div class="form-group">
-              <label for="extractionText"
-                >Paste job description or text to extract data from:</label
-              >
-              <textarea
-                id="extractionText"
-                v-model="extractionText"
-                rows="8"
-                class="form-input text-area"
-                placeholder="Paste your text here..."
-              ></textarea>
-            </div>
-
-            <div v-if="extractionError" class="error-message">
-              {{ extractionError }}
-            </div>
-
-            <div v-if="extractionResult" class="extraction-result">
-              <h4>Extracted Data:</h4>
-              <pre>{{ JSON.stringify(extractionResult, null, 2) }}</pre>
-            </div>
-          </div>
-          <div class="extraction-modal-footer">
-            <button @click="closeExtractionModal" class="btn btn-secondary">
-              Cancel
-            </button>
-            <button
-              @click="handleExtraction"
-              :disabled="isExtracting || !extractionText.trim()"
-              class="btn btn-primary"
-            >
-              {{ isExtracting ? "Extracting..." : "Extract Data" }}
             </button>
           </div>
         </div>
@@ -1418,79 +1275,5 @@ const handleExtraction = async () => {
   .jobs-grid {
     grid-template-columns: 1fr;
   }
-}
-
-/* Extraction Modal Styles */
-.extraction-modal-container {
-  background: white;
-  border-radius: 0.5rem;
-  width: 100%;
-  max-width: 600px;
-  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
-}
-
-.extraction-modal-header {
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid #e9ecef;
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-.extraction-modal-header h3 {
-  margin: 0;
-  font-size: 1.125rem;
-  font-weight: 600;
-  color: #343a40;
-}
-
-.extraction-modal-body {
-  padding: 1.5rem;
-  font-size: 0.95rem;
-}
-
-.extraction-modal-footer {
-  padding: 1rem 1.5rem;
-  background-color: #f8f9fa;
-  border-top: 1px solid #e9ecef;
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.75rem;
-}
-
-.text-area {
-  width: 100%;
-  min-height: 200px;
-  padding: 0.75rem;
-  border: 1px solid #e0e0e0;
-  border-radius: 4px;
-  font-size: 1rem;
-  font-family: monospace;
-  resize: vertical;
-}
-
-.extraction-result {
-  margin-top: 1.5rem;
-  padding: 1rem;
-  background: #f8f9fa;
-  border-radius: 4px;
-  border: 1px solid #e0e0e0;
-}
-
-.extraction-result h4 {
-  margin-bottom: 0.5rem;
-  color: #2c3e50;
-}
-
-.extraction-result pre {
-  white-space: pre-wrap;
-  word-wrap: break-word;
-  background: #fff;
-  padding: 1rem;
-  border-radius: 4px;
-  font-size: 0.9rem;
-  max-height: 300px;
-  overflow-y: auto;
 }
 </style>

@@ -471,15 +471,6 @@ exports.extractAndSaveData = onCall(async (request) => {
       "gemini-1.5-flash-latest"
     );
 
-    // Get the job document reference
-    const jobRef = admin.firestore().collection("jobs").doc(jobId);
-
-    // Update the job document with the extracted data
-    await jobRef.update({
-      ...extractedData,
-      lastUpdated: admin.firestore.FieldValue.serverTimestamp(),
-    });
-
     return {
       success: true,
       data: extractedData,

@@ -1,6 +1,15 @@
 <template>
   <div class="job-form-container">
     <h2 class="form-title">Create New Job</h2>
+    <div class="form-actions-top">
+      <button type="button" @click="showExtractionModal = true" class="btn-extract">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" class="btn-icon">
+          <path fill-rule="evenodd" d="M4.5 2a1.5 1.5 0 00-1.5 1.5v9a1.5 1.5 0 001.5 1.5h11a1.5 1.5 0 001.5-1.5V3.5A1.5 1.5 0 0015.5 2h-11zm0 1h11a.5.5 0 01.5.5v9a.5.5 0 01-.5.5h-11a.5.5 0 01-.5-.5v-9a.5.5 0 01.5-.5z" clip-rule="evenodd" />
+          <path fill-rule="evenodd" d="M7.5 5a.5.5 0 01.5.5v4a.5.5 0 01-1 0v-4a.5.5 0 01.5-.5zm3 0a.5.5 0 01.5.5v4a.5.5 0 01-1 0v-4a.5.5 0 01.5-.5z" clip-rule="evenodd" />
+        </svg>
+        Extract from Description
+      </button>
+    </div>
     <form @submit.prevent="handleSubmit" class="form-layout">
       <fieldset>
         <legend>Basic Information</legend>
@@ -713,13 +722,61 @@
         <button type="submit" class="btn-submit">Create Job</button>
       </div>
     </form>
+
+    <!-- Extraction Modal -->
+    <div v-if="showExtractionModal" class="modal-overlay" @click.self="closeExtractionModal">
+      <div class="extraction-modal-container">
+        <div class="extraction-modal-header">
+          <h3>Extract Job Data</h3>
+          <button @click="closeExtractionModal" class="btn-close-modal" aria-label="Close">&times;</button>
+        </div>
+        <div class="extraction-modal-body">
+          <div class="form-group">
+            <label for="extractionText">Paste job description to extract data from:</label>
+            <textarea
+              id="extractionText"
+              v-model="extractionText"
+              rows="8"
+              class="form-input text-area"
+              placeholder="Paste your job description here..."
+            ></textarea>
+          </div>
+
+          <div v-if="extractionError" class="error-message">
+            {{ extractionError }}
+          </div>
+
+        </div>
+        <div class="extraction-modal-footer">
+          <button @click="closeExtractionModal" class="btn btn-secondary">Cancel</button>
+          <button
+            @click="handleExtraction"
+            :disabled="isExtracting || !extractionText.trim()"
+            class="btn btn-primary"
+          >
+            {{ isExtracting ? "Extracting..." : "Extract Data" }}
+          </button>
+        </div>
+      </div>
+    </div>
   </div>
 </template>
 
 <script setup>
-import { reactive, defineEmits } from "vue";
+import { reactive, defineEmits, ref } from "vue";
+import { getFunctions, httpsCallable } from "firebase/functions";
+import { useAuthStore } from "@/stores/auth";
 
 const emit = defineEmits(["submit", "close"]);
+const functions = getFunctions();
+const extractAndSaveData = httpsCallable(functions, "extractAndSaveData");
+const authStore = useAuthStore();
+
+// Add new refs for extraction functionality
+const showExtractionModal = ref(false);
+const extractionText = ref("");
+const isExtracting = ref(false);
+const extractionError = ref("");
 
 const initialTechStackItem = () => ({
   skill: "",
@@ -822,6 +879,164 @@ const handleSubmit = () => {
   const finalFormData = JSON.parse(JSON.stringify(formData));
 
   emit("submit", finalFormData);
+};
+
+const closeExtractionModal = () => {
+  showExtractionModal.value = false;
+  extractionText.value = "";
+  extractionError.value = "";
+};
+
+const handleExtraction = async () => {
+  if (!extractionText.value.trim()) {
+    extractionError.value = "Please enter some text to extract data from";
+    return;
+  }
+
+  if (!authStore.currentOrg?.id) {
+    extractionError.value = "No organization selected. Please select an organization first.";
+    return;
+  }
+
+  isExtracting.value = true;
+  extractionError.value = "";
+
+  try {
+    // Create a temporary job ID for extraction
+    const tempJobId = `temp_${Date.now()}`;
+    
+    const result = await extractAndSaveData({
+      orgId: authStore.currentOrg.id,
+      jobId: tempJobId,
+      textInput: extractionText.value,
+    });
+    
+    // Prefill form with extracted data
+    if (result.data.success) {
+      const extractedData = result.data.data;
+      console.log("Extracted data:", extractedData);
+      
+      // Handle basic fields
+      const basicFields = [
+        'jobTitle', 'jobDepartment', 'jobDescription', 'jobLocation',
+        'jobType', 'applicationDeadline', 'travelRequirements', 'salaryRange',
+        'teamSize', 'riskTolerance', 'candidatePersona'
+      ];
+      
+      basicFields.forEach(field => {
+        if (extractedData[field]) {
+          formData[field] = extractedData[field];
+        }
+      });
+
+      // Handle each array field separately with its specific structure
+      // Required Skills
+      if (Array.isArray(extractedData.requiredSkills)) {
+        formData.requiredSkills = extractedData.requiredSkills.map(skill => 
+          typeof skill === 'object' ? skill.skill : skill
+        ).filter(Boolean); // Remove any null/undefined/empty values
+      }
+      
+      // Preferred Skills
+      if (Array.isArray(extractedData.preferredSkills)) {
+        formData.preferredSkills = extractedData.preferredSkills.map(skill => 
+          typeof skill === 'object' ? skill.skill : skill
+        ).filter(Boolean);
+      }
+
+      // Required Education
+      if (Array.isArray(extractedData.requiredEducation)) {
+        formData.requiredEducation = extractedData.requiredEducation
+          .map(edu => typeof edu === 'object' ? edu.name || edu.degree : edu)
+          .filter(Boolean);
+      }
+
+      // Required Certifications
+      if (Array.isArray(extractedData.requiredCertifications)) {
+        formData.requiredCertifications = extractedData.requiredCertifications
+          .map(cert => typeof cert === 'object' ? cert.name || cert.title : cert)
+          .filter(Boolean);
+      }
+
+      // Required Questions
+      if (Array.isArray(extractedData.requiredQuestions)) {
+        formData.requiredQuestions = extractedData.requiredQuestions
+          .map(q => typeof q === 'object' ? q.question || q.text : q)
+          .filter(Boolean);
+      }
+
+      // Candidate Resource Links
+      if (Array.isArray(extractedData.candidateResourceLinks)) {
+        formData.candidateResourceLinks = extractedData.candidateResourceLinks
+          .map(link => typeof link === 'object' ? link.url || link.href : link)
+          .filter(Boolean);
+      }
+
+      // Handle techStack
+      if (extractedData.techStack) {
+        if (extractedData.techStack.architecture) {
+          formData.techStack.architecture = extractedData.techStack.architecture;
+        }
+        if (extractedData.techStack.scale) {
+          formData.techStack.scale = extractedData.techStack.scale;
+        }
+        if (Array.isArray(extractedData.techStack.challenges)) {
+          formData.techStack.challenges = extractedData.techStack.challenges;
+        }
+        if (Array.isArray(extractedData.techStack.practices)) {
+          formData.techStack.practices = extractedData.techStack.practices;
+        }
+        if (Array.isArray(extractedData.techStack.stack)) {
+          formData.techStack.stack = extractedData.techStack.stack.map(item => ({
+            skill: item.skill || '',
+            level: item.level || 'intermediate',
+            realWorldApplication: item.realWorldApplication || '',
+            redFlags: Array.isArray(item.redFlags) ? item.redFlags : [],
+            weight: item.weight || 1
+          }));
+        }
+      }
+
+      // Handle successCriteria
+      if (extractedData.successCriteria) {
+        if (Array.isArray(extractedData.successCriteria.immediate)) {
+          formData.successCriteria.immediate = extractedData.successCriteria.immediate.map(item => ({
+            metric: item.metric || '',
+            description: item.description || '',
+            weight: item.weight || 1
+          }));
+        }
+        if (Array.isArray(extractedData.successCriteria.longTerm)) {
+          formData.successCriteria.longTerm = extractedData.successCriteria.longTerm.map(item => ({
+            metric: item.metric || '',
+            description: item.description || '',
+            weight: item.weight || 1
+          }));
+        }
+      }
+
+      // Handle workEnvironment
+      if (extractedData.workEnvironment) {
+        const workEnvFields = [
+          'techMaturity', 'structure', 'communication', 'pace',
+          'growthExpectiations', 'collaboration'
+        ];
+        
+        workEnvFields.forEach(field => {
+          if (extractedData.workEnvironment[field]) {
+            formData.workEnvironment[field] = extractedData.workEnvironment[field];
+          }
+        });
+      }
+    }
+
+    closeExtractionModal();
+  } catch (error) {
+    console.error("Extraction error:", error);
+    extractionError.value = error.message || "Failed to extract data";
+  } finally {
+    isExtracting.value = false;
+  }
 };
 </script>
 
@@ -1080,5 +1295,121 @@ textarea {
   font-weight: 600;
   color: #4a5568;
   font-size: 0.9rem;
+}
+
+.form-actions-top {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 1rem;
+}
+
+.btn-extract {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 1rem;
+  background-color: #4a90e2;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  transition: background-color 0.2s;
+}
+
+.btn-extract:hover {
+  background-color: #357abd;
+}
+
+.btn-icon {
+  width: 1.2rem;
+  height: 1.2rem;
+}
+
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.extraction-modal-container {
+  background: white;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 600px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.extraction-modal-header {
+  padding: 1rem;
+  border-bottom: 1px solid #eee;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.extraction-modal-header h3 {
+  margin: 0;
+  font-size: 1.2rem;
+  color: #333;
+}
+
+.btn-close-modal {
+  background: none;
+  border: none;
+  font-size: 1.5rem;
+  cursor: pointer;
+  color: #666;
+}
+
+.extraction-modal-body {
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.extraction-modal-footer {
+  padding: 1rem;
+  border-top: 1px solid #eee;
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+}
+
+.error-message {
+  color: #d32f2f;
+  margin: 0.5rem 0;
+  font-size: 0.9rem;
+}
+
+.extraction-result {
+  margin-top: 1rem;
+  padding: 1rem;
+  background: #f5f5f5;
+  border-radius: 4px;
+}
+
+.extraction-result pre {
+  margin: 0;
+  white-space: pre-wrap;
+  font-size: 0.9rem;
+}
+
+.text-area {
+  width: 100%;
+  min-height: 150px;
+  padding: 0.75rem;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  resize: vertical;
 }
 </style>
