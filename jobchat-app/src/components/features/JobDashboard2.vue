@@ -18,7 +18,6 @@ const createJobCallable = httpsCallable(functions, "createJob"); // from orgs/in
 const updateJobByIdCallable = httpsCallable(functions, "updateJobById"); // from orgs/index.js
 const deleteJobByIdCallable = httpsCallable(functions, "deleteJobById"); // from orgs/index.js
 const getApplicationsByJobId = httpsCallable(functions, "getApplicationsByJobId");
-const findOneOrManyApplicationsById = httpsCallable(functions, "findOneOrManyApplicationsById");
 
 const jobs = ref([]);
 const showJobForm = ref(false);

@@ -250,46 +250,27 @@ exports.getApplicationDetails = onCall(async (request) => {
     }
 
     const applicationData = applicationSnapshot.data();
-    const candidateId = applicationData.candidateId;
-    const reportId = applicationData.reportId;
-
-    // Get the candidate document
-    const candidateSnapshot = await admin
-      .firestore()
-      .collection("candidates")
-      .doc(candidateId)
-      .get();
-
-    if (!candidateSnapshot.exists) {
-      throw new HttpsError("not-found", "Candidate not found");
-    }
-
-    const candidateData = candidateSnapshot.data();
+    const reportId = applicationData.reportID;
 
     // Get the report document if it exists
     let reportData = null;
     if (reportId) {
       const reportSnapshot = await admin
-        .firestore()
-        .collection("reports")
-        .doc(reportId)
-        .get();
+      .firestore()
+      .collection("reports")
+      .doc(reportId)
+      .get();
 
+      console.log("reportSnapshot", reportSnapshot.data());
       if (reportSnapshot.exists) {
-        reportData = reportSnapshot.data();
+        reportData = reportSnapshot.get("candidateFeedback");
+        console.log("reportData", reportData);
       }
     }
 
     // Combine all the data
     const responseData = {
       ...applicationData,
-      candidate: {
-        id: candidateId,
-        name: candidateData.name,
-        email: candidateData.email,
-        phone: candidateData.phone,
-        resumeUrl: candidateData.resumeUrl
-      },
       report: reportData
     };
 
