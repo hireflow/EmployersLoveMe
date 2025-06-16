@@ -17,6 +17,7 @@ const functions = getFunctions(app);
 const sendChat = httpsCallable(functions, "geminiChatbot");
 const generateReport = httpsCallable(functions, "generateReport");
 const parseForm = httpsCallable(functions, "parseApplicationForm");
+const applyToJob = httpsCallable(functions, "applyToJob");
 
 const currentMessageForGemini = ref("");
 const historyForGemini = ref([]);
@@ -106,7 +107,7 @@ async function submitApplication() {
   chatError.value = "";
 
   try {
-    const result = await generateReport({
+    const reportResult = await generateReport({
       candidateId: candidateAuthStore.candidate.uid,
       jobId: route.params.jobId,
       orgId: route.params.orgId,
@@ -115,13 +116,26 @@ async function submitApplication() {
       history: historyForGemini.value,
     });
 
-    if (result.data.success) {
-      successMessage.value = "Application submitted successfully!";
-      router.push({
-        name: "CandidateDashboard",
+    if (reportResult.data.success) {
+      // Then submit the application
+      const result = await applyToJob({
+        candidateId: candidateAuthStore.candidate.uid,
+        jobId: route.params.jobId,
+        applicationId: applicationId.value,
+        reportId: reportId.value,
+        messages: historyForGemini.value
       });
+
+      if (result.data.success) {
+        successMessage.value = "Application submitted successfully!";
+        router.push({
+          name: "CandidateDashboard",
+        });
+      } else {
+        chatError.value = result.data.message || "Failed to submit application";
+      }
     } else {
-      chatError.value = result.data.message || "Failed to submit application";
+      chatError.value = reportResult.data.message || "Failed to generate report";
     }
   } catch (error) {
     console.error("Error submitting application:", error);
