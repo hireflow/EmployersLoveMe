@@ -230,102 +230,143 @@ exports.findOneOrManyApplicationsById = onCall(async (request) => {
   }
 });
 
+exports.getApplicationDetails = onCall(async (request) => {
+  const { applicationId } = request.data;
 
-// exports.applyToJob = onCall(async (request) => {
-//   try {
-//     const { candidateId, jobId, applicationId, ...applicationResults } =
-//       request.data;
+  if (!applicationId) {
+    throw new HttpsError("invalid-argument", "Missing required parameter: applicationId");
+  }
 
-//     if (!candidateId || !jobId || !applicationId) {
-//       throw new HttpsError("invalid-argument", "Missing required fields");
-//     }
+  try {
+    // Get the application document
+    const applicationSnapshot = await admin
+      .firestore()
+      .collection("applications")
+      .doc(applicationId)
+      .get();
 
-//     const candidateRef = db.collection("candidates").doc(candidateId);
-//     const jobRef = db.collection("jobs").doc(jobId);
+    if (!applicationSnapshot.exists) {
+      throw new HttpsError("not-found", "Application not found");
+    }
 
-//     const [candidateDoc, jobDoc] = await Promise.all([
-//       candidateRef.get(),
-//       jobRef.get(),
-//     ]);
+    const applicationData = applicationSnapshot.data();
+    const reportId = applicationData.reportID;
 
-//     if (!candidateDoc.exists) {
-//       throw new HttpsError(
-//         "not-found",
-//         `Candidate with ID ${candidateId} not found.`
-//       );
-//     }
+    // Get the report document if it exists
+    let reportData = null;
+    if (reportId) {
+      const reportSnapshot = await admin
+      .firestore()
+      .collection("reports")
+      .doc(reportId)
+      .get();
 
-//     if (!jobDoc.exists) {
-//       throw new HttpsError("not-found", `Job with ID ${jobId} not found.`);
-//     }
+      console.log("reportSnapshot", reportSnapshot.data());
+      if (reportSnapshot.exists) {
+        reportData = reportSnapshot.get("candidateFeedback");
+        console.log("reportData", reportData);
+      }
+    }
 
-//     const applicationRef = db.collection("applications").doc(applicationId);
-//     const applicationDoc = await applicationRef.get();
+    // Combine all the data
+    const responseData = {
+      ...applicationData,
+      report: reportData
+    };
 
-//     if (!applicationDoc.exists) {
-//       throw new HttpsError(
-//         "not-found",
-//         `Application with ID ${applicationId} not found.`
-//       );
-//     }
+    return {
+      success: true,
+      data: responseData
+    };
+  } catch (error) {
+    console.error("Error in getApplicationDetails:", error);
+    throw new HttpsError("internal", `Failed to get application details: ${error.message}`);
+  }
+}); 
 
-//     const applicationData = applicationDoc.data();
 
-//     if (applicationData.status === "Not Completed") {
-//       //
-//       const { messages, summaryToAddToReport, scoreToAddToReport } =
-//         applicationResults;
+exports.applyToJob = onCall(async (request) => {
+  try {
+    const { candidateId, jobId, applicationId, reportId, messages} =
+      request.data;
 
-//       // generate a new report
-//       const reportId = db.collection("reports").doc().id;
+    if (!candidateId || !jobId || !applicationId) {
+      throw new HttpsError("invalid-argument", "Missing required fields");
+    }
 
-//       const reportData = {
-//         candidateId,
-//         applicationId,
-//         jobId,
-//         questionResponses: messages,
-//         summary: summaryToAddToReport,
-//         score: scoreToAddToReport,
-//         createdAt: admin.firestore.Timestamp.now(),
-//         updatedAt: admin.firestore.Timestamp.now(),
-//       };
+    const candidateRef = db.collection("candidates").doc(candidateId);
+    const jobRef = db.collection("jobs").doc(jobId);
 
-//       const reportRef = db.collection("reports").doc(reportId);
-//       await reportRef.set(reportData);
+    const [candidateDoc, jobDoc] = await Promise.all([
+      candidateRef.get(),
+      jobRef.get(),
+    ]);
 
-//       // now update the application to include messages and the report id
+    if (!candidateDoc.exists) {
+      throw new HttpsError(
+        "not-found",
+        `Candidate with ID ${candidateId} not found.`
+      );
+    }
 
-//       const appData = {
-//         candidateId,
-//         jobId,
-//         orgId: applicationData.orgId, //check if i need to prefill this???
-//         messages,
-//         reportId,
-//         status: "Completed",
-//         completedAt: admin.firestore.Timestamp.now(),
-//         applicationDate: admin.firestore.Timestamp.now(),
-//       };
+    if (!jobDoc.exists) {
+      throw new HttpsError("not-found", `Job with ID ${jobId} not found.`);
+    }
 
-//       await applicationRef.update(appData);
+    const applicationRef = db.collection("applications").doc(applicationId);
+    const applicationDoc = await applicationRef.get();
 
-//       return {
-//         success: true,
-//         applicationId,
-//         reportId,
-//         message: "Application completed successfully",
-//       };
-//     }
-//   } catch (error) {
-//     console.error("Error applying to job:", error);
-//     if (error instanceof HttpsError) {
-//       throw error; // Re-throw HttpsError
-//     }
-//     throw new HttpsError(
-//       "internal",
-//       "An unexpected error occurred while applying to the job."
-//     );
-//   }
-// });
+    if (!applicationDoc.exists) {
+      throw new HttpsError(
+        "not-found",
+        `Application with ID ${applicationId} not found.`
+      );
+    }
+
+    const applicationData = applicationDoc.data();
+
+    if (applicationData.status !== "Completed") {
+
+
+      const appData = {
+        candidateId,
+        jobId,
+        orgId: applicationData.orgId, //check if i need to prefill this???
+        messages,
+        reportId,
+        status: "Completed",
+        completedAt: admin.firestore.Timestamp.now(),
+        applicationDate: admin.firestore.Timestamp.now(),
+      };
+
+      await applicationRef.update(appData);
+
+      await admin
+        .firestore()
+        .collection("jobs")
+        .doc(jobId)
+        .update({
+          applications: admin.firestore.FieldValue.arrayUnion(applicationId)
+        });
+
+      return {
+        success: true,
+        applicationId,
+        reportId,
+        message: "Application completed successfully",
+      };
+    }
+  } catch (error) {
+    console.error("Error applying to job:", error);
+    if (error instanceof HttpsError) {
+      throw error; // Re-throw HttpsError
+    }
+    throw new HttpsError(
+      "internal",
+      "An unexpected error occurred while applying to the job."
+    );
+  }
+});
 
 exports.parseApplicationForm = onCall(async (request) => {
     const {
@@ -365,5 +406,105 @@ exports.parseApplicationForm = onCall(async (request) => {
       'Failed to save application data.',
       err.message 
     );
+  }
+});
+
+exports.getApplicationsByJobId = onCall(async (request) => {
+  const { jobId } = request.data;
+
+  if (!jobId) {
+    throw new HttpsError("invalid-argument", "Missing required parameter: jobId");
+  }
+
+  try {
+    // First get the job document to get the applications array
+    const jobDoc = await db.collection("jobs").doc(jobId).get();
+    
+    if (!jobDoc.exists) {
+      throw new HttpsError("not-found", "Job not found");
+    }
+
+    const jobData = jobDoc.data();
+    const applicationIds = jobData.applications || [];
+
+    if (applicationIds.length === 0) {
+      return {
+        success: true,
+        applications: [],
+        message: "No applications found for this job"
+      };
+    }
+
+    // Get all applications using the IDs from the job document
+    const applicationsSnapshot = await db
+      .collection("applications")
+      .where(admin.firestore.FieldPath.documentId(), "in", applicationIds)
+      .get();
+
+    if (applicationsSnapshot.empty) {
+      return {
+        success: true,
+        applications: [],
+        message: "No applications found for this job"
+      };
+    }
+
+    // Get all candidate IDs from the applications
+    const candidateIds = applicationsSnapshot.docs.map(doc => doc.data().candidateId);
+    
+    // Get all candidate documents
+    const candidateSnapshots = await Promise.all(
+      candidateIds.map(id => db.collection("candidates").doc(id).get())
+    );
+
+    // Create a map of candidate data
+    const candidateMap = new Map();
+    candidateSnapshots.forEach((doc, index) => {
+      if (doc.exists) {
+        candidateMap.set(candidateIds[index], doc.data());
+      }
+    });
+
+    // Get all report IDs from the applications
+    const reportIds = applicationsSnapshot.docs.map(doc => doc.data().reportID);
+    
+    // Get all report documents
+    const reportSnapshots = await Promise.all(
+      reportIds.map(id => db.collection("reports").doc(id).get())
+    );
+
+    // Create a map of report data
+    const reportMap = new Map();
+    reportSnapshots.forEach((doc, index) => {
+      if (doc.exists) {
+        reportMap.set(reportIds[index], doc.data());
+      }
+    });
+
+    // Combine all the data
+    const applications = applicationsSnapshot.docs.map(doc => {
+      const appData = doc.data();
+      return {
+        id: doc.id,
+        ...appData,
+        candidate: candidateMap.get(appData.candidateId) ? {
+          id: appData.candidateId,
+          name: candidateMap.get(appData.candidateId).name,
+          email: candidateMap.get(appData.candidateId).email,
+          phone: candidateMap.get(appData.candidateId).phone,
+          resumeUrl: candidateMap.get(appData.candidateId).resumeUrl
+        } : null,
+        report: reportMap.get(appData.reportID) || null
+      };
+    });
+
+    return {
+      success: true,
+      applications,
+      message: `Successfully retrieved ${applications.length} applications`
+    };
+  } catch (error) {
+    console.error("Error getting applications by job ID:", error);
+    throw new HttpsError("internal", `Failed to get applications: ${error.message}`);
   }
 });

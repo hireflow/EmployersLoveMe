@@ -17,16 +17,26 @@ const getJobsByOrgId = httpsCallable(functions, "getJobsByOrgId"); // from orgs/
 const createJobCallable = httpsCallable(functions, "createJob"); // from orgs/index.js
 const updateJobByIdCallable = httpsCallable(functions, "updateJobById"); // from orgs/index.js
 const deleteJobByIdCallable = httpsCallable(functions, "deleteJobById"); // from orgs/index.js
+const getApplicationsByJobId = httpsCallable(functions, "getApplicationsByJobId");
 
 const jobs = ref([]);
 const showJobForm = ref(false);
 const showEditModal = ref(false);
-const showChatbotModal = ref(false); // Assuming this is still relevant
-const selectedJob = ref(null); // This will hold the full job object for editing
+const showChatbotModal = ref(false);
+const showApplicationsModal = ref(false);
+const selectedJob = ref(null);
 const errorMessage = ref("");
 const successMessage = ref("");
 const showDeleteConfirmation = ref(false);
 const currentOrgId = ref(null);
+const isLoading = ref(false); // Add loading state
+
+// Add new refs for application data
+const applicationsData = ref([]);
+const applicationsLoading = ref(false);
+
+// Add new ref for expanded summaries
+const expandedSummaries = ref(new Set());
 
 // ... (formatTimestamp, fetchJobs, deleteConfirmation logic remains largely the same) ...
 const formatTimestamp = (timestampInput) => {
@@ -66,6 +76,7 @@ const fetchJobs = async () => {
       jobs.value = [];
       return;
     }
+    isLoading.value = true; // Set loading to true before fetch
     errorMessage.value = "";
     const result = await getJobsByOrgId({ orgId: currentOrgId.value });
     if (result.data.success) {
@@ -79,6 +90,8 @@ const fetchJobs = async () => {
     errorMessage.value =
       error.message || "Failed to fetch jobs. Please try again.";
     jobs.value = [];
+  } finally {
+    isLoading.value = false; // Set loading to false after fetch completes
   }
 };
 
@@ -427,6 +440,58 @@ const openInNewTab = (url) => {
   window.open(url, "_blank");
 };
 
+const getCandidateName = (application) => {
+  return application?.candidate?.name || "Unknown Candidate";
+};
+
+const getApplicationDate = (application) => {
+  return application?.completedAt || application?.applicationDate;
+};
+
+const getApplicationScore = (application) => {
+  return application?.report?.score || "N/A";
+};
+
+const getApplicationStatus = (application) => {
+  return application?.status || "Unknown";
+};
+
+// Modify openApplicationsModal to fetch application data
+const openApplicationsModal = async (job) => {
+  selectedJob.value = { ...job };
+  showApplicationsModal.value = true;
+  applicationsLoading.value = true;
+  
+  try {
+    // First get the job document to get the applications array
+    const result = await getApplicationsByJobId({ jobId: job.id });
+    if (result.data.success) {
+      applicationsData.value = result.data.applications;
+    } else {
+      applicationsData.value = [];
+    }
+  } catch (error) {
+    console.error("Error loading applications:", error);
+    applicationsData.value = [];
+  } finally {
+    applicationsLoading.value = false;
+  }
+};
+
+const closeApplicationsModal = () => {
+  selectedJob.value = null;
+  showApplicationsModal.value = false;
+};
+
+// Add function to toggle summary expansion
+const toggleSummary = (applicationId) => {
+  if (expandedSummaries.value.has(applicationId)) {
+    expandedSummaries.value.delete(applicationId);
+  } else {
+    expandedSummaries.value.add(applicationId);
+  }
+};
+
 const JobForm = defineAsyncComponent(() =>
   import("@/components/features/JobForm.vue")
 );
@@ -532,8 +597,12 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
         </div>
 
         <div v-if="currentOrgId">
+          <div v-if="isLoading" class="loading-container">
+            <LoadingSpinner message="Loading jobs..." />
+          </div>
+
           <div
-            v-if="jobs.length === 0 && !errorMessage && !authStore.loading"
+            v-else-if="jobs.length === 0 && !errorMessage && !authStore.loading"
             class="no-jobs-found"
           >
             <svg
@@ -570,12 +639,14 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
 
           <div v-if="jobs.length > 0" class="jobs-grid">
             <div v-for="job in jobs" :key="job.id" class="job-card">
-              <div
-                class="job-card-status-banner"
-                :class="`status-${job.status?.toLowerCase()}`"
-              >
+              <div class="job-card-status-banner" :class="`status-${job.status?.toLowerCase()}`">
                 {{ job.status || "Unknown" }}
               </div>
+              <button @click.stop="openDeleteConfirmation(job)" class="btn-delete" title="Delete job">
+                <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor">
+                  <path fill-rule="evenodd" d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.58.197-2.328.372A.75.75 0 003 5.25v1.5a.75.75 0 00.75.75H5v7.5A2.75 2.75 0 007.75 18h4.5A2.75 2.75 0 0015 15V7.5h1.25a.75.75 0 00.75-.75v-1.5a.75.75 0 00-.672-.743c-.748-.175-1.533-.295-2.328-.372V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.534.059 2.199.181C12.865 4.334 13.5 4.773 13.5 5.25V6H6.5V5.25c0-.477.635-.916 1.301-.969A18.5 18.5 0 0110 4zM8.5 7.5V15h3V7.5h-3z" clip-rule="evenodd"/>
+                </svg>
+              </button>
               <div class="job-card-header">
                 <h3 class="job-title">{{ job.jobTitle || "Untitled Job" }}</h3>
                 <p class="job-department">
@@ -733,6 +804,24 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
 
               <div class="job-card-footer">
                 <button
+                  @click.stop="openApplicationsModal(job)"
+                  class="btn btn-secondary btn-sm"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    class="btn-icon"
+                  >
+                    <path
+                      fill-rule="evenodd"
+                      d="M2 4.25A2.25 2.25 0 014.25 2h11.5A2.25 2.25 0 0118 4.25v8.5A2.25 2.25 0 0115.75 15h-3.105a3.501 3.501 0 001.1 1.677A.75.75 0 0113.26 18H6.74a.75.75 0 01-.484-1.323A3.501 3.501 0 007.355 15H4.25A2.25 2.25 0 012 12.75v-8.5zm1.5 0a.75.75 0 01.75-.75h11.5a.75.75 0 01.75.75v7.5a.75.75 0 01-.75.75H4.25a.75.75 0 01-.75-.75v-7.5z"
+                      clip-rule="evenodd"
+                    />
+                  </svg>
+                  View Applications
+                </button>
+                <button
                   @click.stop="openEditModal(job)"
                   class="btn btn-secondary btn-sm"
                 >
@@ -768,24 +857,6 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
                     ></path>
                   </svg>
                   Configure Bot
-                </button>
-                <button
-                  @click.stop="openDeleteConfirmation(job)"
-                  class="btn btn-danger btn-sm"
-                >
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    class="btn-icon"
-                  >
-                    <path
-                      fill-rule="evenodd"
-                      d="M8.75 1A2.75 2.75 0 006 3.75v.443c-.795.077-1.58.197-2.328.372A.75.75 0 003 5.25v1.5a.75.75 0 00.75.75H5v7.5A2.75 2.75 0 007.75 18h4.5A2.75 2.75 0 0015 15V7.5h1.25a.75.75 0 00.75-.75v-1.5a.75.75 0 00-.672-.743c-.748-.175-1.533-.295-2.328-.372V3.75A2.75 2.75 0 0011.25 1h-2.5zM10 4c.84 0 1.534.059 2.199.181C12.865 4.334 13.5 4.773 13.5 5.25V6H6.5V5.25c0-.477.635-.916 1.301-.969A18.5 18.5 0 0110 4zM8.5 7.5V15h3V7.5h-3z"
-                      clip-rule="evenodd"
-                    ></path>
-                  </svg>
-                  Delete
                 </button>
               </div>
             </div>
@@ -868,6 +939,79 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
               </svg>
               Yes, Delete
             </button>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-if="showApplicationsModal"
+        class="modal-overlay"
+        @click.self="closeApplicationsModal"
+      >
+        <div class="applications-modal-container">
+          <div class="applications-modal-header">
+            <h3>Applications for {{ selectedJob?.jobTitle }}</h3>
+            <button
+              @click="closeApplicationsModal"
+              class="btn-close-modal"
+              aria-label="Close"
+            >
+              &times;
+            </button>
+          </div>
+          <div class="applications-modal-body">
+            <div v-if="applicationsLoading" class="loading-container">
+              <LoadingSpinner message="Loading applications..." />
+            </div>
+            <div v-else-if="!applicationsData.length" class="no-applications">
+              <p>No applications received yet.</p>
+            </div>
+            <table v-else class="applications-table">
+              <thead>
+                <tr>
+                  <th>Candidate Name</th>
+                  <th>Date Completed</th>
+                  <th>Score</th>
+                  <th>Status</th>
+                  <th>Summary</th>
+                </tr>
+              </thead>
+              <tbody>
+                <template v-for="application in applicationsData" :key="application.id">
+                  <tr>
+                    <td>{{ getCandidateName(application) }}</td>
+                    <td>{{ formatTimestamp(getApplicationDate(application)) }}</td>
+                    <td>{{ getApplicationScore(application) }}</td>
+                    <td>
+                      <span :class="`status-${getApplicationStatus(application)?.toLowerCase()}`">
+                        {{ getApplicationStatus(application) }}
+                      </span>
+                    </td>
+                    <td>
+                      <button 
+                        v-if="application.report?.summary"
+                        @click="toggleSummary(application.id)"
+                        class="btn-summary"
+                        :class="{ 'expanded': expandedSummaries.has(application.id) }"
+                      >
+                        {{ expandedSummaries.has(application.id) ? 'Hide Summary' : 'Show Summary' }}
+                      </button>
+                      <span v-else class="no-summary">No summary available</span>
+                    </td>
+                  </tr>
+                  <tr v-if="expandedSummaries.has(application.id)" class="summary-row">
+                    <td colspan="5">
+                      <div class="summary-panel">
+                        <div class="summary-content">
+                          <h4>Interview Summary for {{ getCandidateName(application) }}</h4>
+                          <p>{{ application.report?.summary || 'No summary available' }}</p>
+                        </div>
+                      </div>
+                    </td>
+                  </tr>
+                </template>
+              </tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -958,8 +1102,10 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
   border-color: #c53030;
 }
 .btn-sm {
-  padding: 0.375rem 0.75rem;
-  font-size: 0.8rem;
+  padding: 0.375rem 0.5rem;
+  font-size: 0.75rem;
+  white-space: nowrap;
+  min-width: fit-content;
 }
 
 /* Alerts */
@@ -1189,8 +1335,9 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
   border-top: 1px solid #e8edf3;
   display: flex;
   justify-content: flex-end;
-  gap: 0.75rem;
+  gap: 0.5rem;
   background-color: #fcfdff;
+  flex-wrap: wrap;
 }
 
 /* Modals */
@@ -1275,5 +1422,167 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
   .jobs-grid {
     grid-template-columns: 1fr;
   }
+}
+
+.loading-container {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 200px;
+  width: 100%;
+}
+
+.applications-modal-container {
+  background: white;
+  border-radius: 0.5rem;
+  width: 100%;
+  max-width: 800px;
+  max-height: 80vh;
+  box-shadow: 0 8px 25px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+}
+
+.applications-modal-header {
+  padding: 1rem 1.5rem;
+  border-bottom: 1px solid #e9ecef;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.applications-modal-body {
+  padding: 1.5rem;
+  overflow-y: auto;
+}
+
+.applications-table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+}
+
+.applications-table th,
+.applications-table td {
+  padding: 0.75rem;
+  text-align: left;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.applications-table th {
+  background-color: #f8f9fa;
+  font-weight: 600;
+  color: #495057;
+}
+
+.applications-table tr:hover {
+  background-color: #f8f9fa;
+}
+
+.no-applications {
+  text-align: center;
+  padding: 2rem;
+  color: #6c757d;
+}
+
+.applications-table td .status-completed {
+  color: #28a745;
+  font-weight: 500;
+}
+
+.applications-table td .status-not-completed {
+  color: #ffc107;
+  font-weight: 500;
+}
+
+.applications-table td .status-unknown {
+  color: #6c757d;
+  font-weight: 500;
+}
+
+.btn-delete {
+  position: absolute;
+  top: 0.75rem;
+  right: 0.75rem;
+  background: none;
+  border: none;
+  color: #dc3545;
+  padding: 0.25rem;
+  cursor: pointer;
+  z-index: 2;
+  opacity: 0.7;
+  transition: opacity 0.2s ease;
+}
+
+.btn-delete:hover {
+  opacity: 1;
+}
+
+.btn-delete svg {
+  width: 1.25rem;
+  height: 1.25rem;
+}
+
+.btn-summary {
+  background: none;
+  border: 1px solid #e2e8f0;
+  color: #4a5568;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-summary:hover {
+  background-color: #f7fafc;
+  border-color: #cbd5e0;
+}
+
+.btn-summary.expanded {
+  background-color: #ebf8ff;
+  border-color: #4299e1;
+  color: #2b6cb0;
+}
+
+.no-summary {
+  color: #a0aec0;
+  font-size: 0.75rem;
+  font-style: italic;
+}
+
+.summary-row {
+  background-color: #f8fafc;
+}
+
+.summary-row td {
+  padding: 0 !important;
+}
+
+.summary-panel {
+  margin: 0;
+  padding: 1rem;
+  background-color: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e2e8f0;
+}
+
+.summary-content {
+  max-width: 100%;
+}
+
+.summary-content h4 {
+  margin: 0 0 0.5rem 0;
+  color: #2d3748;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+.summary-content p {
+  margin: 0;
+  color: #4a5568;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  white-space: pre-wrap;
 }
 </style>

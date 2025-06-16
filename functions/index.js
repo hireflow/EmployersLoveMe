@@ -23,10 +23,13 @@ const chatbotFunctions = require("./chatbot");
 exports.getPublicJobDetails = jobFunctions.getPublicJobDetails;
 
 // application functions
+exports.applyToJob = applicationFunctions.applyToJob;
 exports.createApplication = applicationFunctions.createApplication;
 exports.findOneOrManyApplicationsById =
   applicationFunctions.findOneOrManyApplicationsById;
 exports.parseApplicationForm = applicationFunctions.parseApplicationForm;
+exports.getApplicationDetails = applicationFunctions.getApplicationDetails;
+exports.getApplicationsByJobId = applicationFunctions.getApplicationsByJobId;
 
 // Export auth functions
 exports.registerUser = authFunctions.registerUser;
