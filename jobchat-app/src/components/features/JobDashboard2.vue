@@ -750,14 +750,14 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
                   <div class="link-input-group">
                     <input
                       type="text"
-                      :value="`http://localhost:8080/applications/${currentOrgId}/${job.id}`"
+                      :value="`http://hireflow.firebaseapp.com/applications/${currentOrgId}/${job.id}`"
                       readonly
                       class="application-url-display"
                     />
                     <button
                       @click.stop="
                         copyToClipboard(
-                          `http://localhost:8080/applications/${currentOrgId}/${job.id}`
+                          `http://hireflow.firebaseapp.com/applications/${currentOrgId}/${job.id}`
                         )
                       "
                       class="btn btn-icon-action"
