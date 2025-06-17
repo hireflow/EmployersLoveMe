@@ -779,7 +779,7 @@ const ChatbotConfigModal = defineAsyncComponent(() =>
                     <button
                       @click.stop="
                         openInNewTab(
-                          `http://localhost:8080/applications/${currentOrgId}/${job.id}`
+                          `http://hireflow.firebaseapp.com/applications/${currentOrgId}/${job.id}`
                         )
                       "
                       class="btn btn-icon-action"
